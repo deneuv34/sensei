@@ -41,7 +41,7 @@ Analyze changed TS/JS files against the index; print findings; exit non-zero onl
 | `--block` | Exit 1 if any finding. Overrides `validate.block` config. |
 | `--json` | Emit the Zod-validated `ValidationReport` JSON to stdout instead of the human render. |
 
-Mutually-exclusive source flags resolve by precedence `--against` > `--all` > `--staged`. Only `.ts/.tsx/.js/.jsx` files are analyzed; others are ignored. Deleted files (`--diff-filter` excludes `D`) are not analyzed for duplication but *are* eligible for the dangerous-edit check (deleting a high-fan-in file is risky).
+Mutually-exclusive source flags resolve by precedence `--against` > `--all` > `--staged`. Only `.ts/.tsx/.js/.jsx` files are analyzed; others are ignored. The `--diff-filter=ACMR` set covers added/copied/modified/renamed files; pure deletions are out of scope this cycle.
 
 ### `sensei guard <action> [flags]`
 
@@ -64,7 +64,7 @@ Given the resolved set of changed files:
 2. **Read working-tree content** of each changed file (not the index), so brand-new unscanned files still work. Unreadable/deleted files skip step 3.
 3. **Extract symbols** with the existing `ast/extract.ts#extractFromSource(path, source)`.
 4. **Determine introduced symbols** (`src/validate/introduced.ts`): a symbol is *introduced* if no symbol with the same `name`+`kind`+`signature` exists for that file path in the index. (Same name+kind but changed signature also counts as introduced — it is new surface area.) This needs a new focused read method `IndexDb.symbolsForFile(path): { name; kind; signature }[]` — the only additive change to an existing MVP module; it is consistent with the existing accessors (`getFileByPath`, `allFiles`).
-5. **Duplicate-candidate check** (`src/validate/checks.ts`): for each introduced symbol, reuse `search/search.ts` to retrieve index hits and `scorer/score.ts` to score them against the symbol's own name + signature (treated as the "task" tokens). Take the best hit whose `path` differs from the changed file. If its score ≥ `validate.duplicateThreshold` → emit a `duplicate-candidate` finding.
+5. **Duplicate-candidate check** (`src/validate/checks.ts`): for each introduced symbol, reuse `search/search.ts` (FTS5) to **retrieve** index hits, then score each hit with a focused **symbol-similarity** = 50/50 token-Jaccard of name and signature (a small helper in `checks.ts` built on the shared `tokenize`). Take the best cross-file hit (`path` ≠ changed file); if its similarity ≥ `validate.duplicateThreshold` → emit a `duplicate-candidate` finding. *Why not `scorer/score.ts`:* the reuse scorer ranks task→symbol relevance via path/recency/test/exported signals and tops out well below 0.7 for a same-signature rename — a different question than symbol→symbol duplication. Retrieval is reused; the similarity judgment is purpose-built.
 6. **Dangerous-edit check** (`src/validate/checks.ts`): call `scorer/score.ts#findDangerousFiles(db, config)` once (it already encapsulates both the `dangerous.importerThreshold` rule and entrypoint detection), build a `path → DangerousFile` map, and for each changed file present in that map emit a `dangerous-edit` finding using its `importerCount` + `reason`. No re-implementation of entrypoint matching.
 7. **Assemble + render** (`src/validate/report.ts`): build the `ValidationReport`, write `.sensei/last-validation.json`, render human output to stdout.
 
@@ -165,7 +165,7 @@ Dependency direction: `commands` → `core` → (`validate`, `guard`). `validate
 Common names (`handle`, `get`, `validate`, `index`) collide on name alone. A nagging hook gets disabled — the failure mode that kills enforcement tools.
 
 Mitigations, all in this design:
-- Require **signature overlap**, not just name: the scorer weights signature tokens, and `duplicateThreshold` (0.7) is high enough that name-only matches fall short.
+- Require **signature overlap**, not just name: similarity weights signature tokens equally with name (50/50), so a name-only match caps at 0.5 — below the 0.7 default. A same-name *and* same-signature reimplementation scores ~1.0 and fires; a merely related name does not.
 - **Common-name suppression** via the existing tokenizer stopword/short-token filter — a symbol whose name tokenizes to nothing meaningful is skipped for the duplicate check.
 - **Warn-only default** — false positives cost a log line, not a blocked commit, until the team opts into `--block`.
 - **Same-file exclusion** — a moved/renamed symbol matching its own prior location (stale index) is excluded by the `path !== changedFile` rule.
