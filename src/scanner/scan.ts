@@ -1,11 +1,12 @@
 import fg from 'fast-glob';
-import ignoreImport from 'ignore';
+import { createRequire } from 'node:module';
 import type { Ignore } from 'ignore';
 import { simpleGit } from 'simple-git';
 
-// `ignore` is CJS at runtime (module.exports = factory, callable) but its .d.ts models a
-// default export, which NodeNext types as a non-callable namespace. Cast to the real factory.
-const createIgnore = ignoreImport as unknown as (options?: object) => Ignore;
+// `ignore` ships CJS (module.exports = factory) with a .d.ts that NodeNext types as a
+// non-callable default. Load it via createRequire so the runtime value is the real factory.
+const require = createRequire(import.meta.url);
+const createIgnore = require('ignore') as (options?: object) => Ignore;
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';

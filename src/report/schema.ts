@@ -1,10 +1,11 @@
 import { z } from 'zod';
+import { SYMBOL_KINDS } from '../types.js';
 
 export const ReuseCandidateSchema = z.object({
   path: z.string(),
   line: z.number(),
   name: z.string(),
-  kind: z.string(),
+  kind: z.enum(SYMBOL_KINDS),
   signature: z.string(),
   score: z.number(),
   reasons: z.array(z.string()),
