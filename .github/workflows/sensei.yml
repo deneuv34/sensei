@@ -18,4 +18,4 @@ jobs:
           fetch-depth: 0 # full history so validate-diff can find the merge-base
       - uses: ./
         with:
-          block: false # warn-only: never block our own development
+          block: true # TEMP: prove the gate fires; revert to false after test
