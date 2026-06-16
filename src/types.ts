@@ -1,6 +1,6 @@
 export const SYMBOL_KINDS = ['function', 'class', 'method', 'interface', 'type', 'const', 'enum'] as const;
 export type SymbolKind = (typeof SYMBOL_KINDS)[number];
-export type Lang = 'ts' | 'tsx' | 'js' | 'jsx';
+export type Lang = 'ts' | 'tsx' | 'js' | 'jsx' | 'py' | 'go' | 'rust' | 'java';
 
 export interface ScannedFile {
   path: string;                 // repo-relative, posix-separated

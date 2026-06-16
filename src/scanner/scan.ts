@@ -9,17 +9,11 @@ const createIgnore = require('ignore') as (options?: object) => Ignore;
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import type { ScannedFile, Lang } from '../types.js';
+import type { ScannedFile } from '../types.js';
 import type { SenseiConfig } from '../config/schema.js';
+import { langOfPath } from '../lang.js';
 import { gitMetaMap } from './git-meta.js';
 import { noopProgress, type ProgressFn } from '../core/progress.js';
-
-function extLang(rel: string): Lang {
-  if (rel.endsWith('.tsx')) return 'tsx';
-  if (rel.endsWith('.ts')) return 'ts';
-  if (rel.endsWith('.jsx')) return 'jsx';
-  return 'js';
-}
 
 const toPosix = (p: string): string => p.split(path.sep).join('/');
 
@@ -55,7 +49,7 @@ export async function scanRepo(
     const hash = crypto.createHash('sha1').update(content).digest('hex');
     const loc = content.length === 0 ? 0 : content.split('\n').length;
     const posix = toPosix(rel);
-    files.push({ path: posix, hash, lang: extLang(rel), loc, gitLastModified: null, gitCommitCount: 0 });
+    files.push({ path: posix, hash, lang: langOfPath(rel), loc, gitLastModified: null, gitCommitCount: 0 });
     onProgress({ phase: 'discover', done: files.length, total: kept.length, detail: posix });
   }
 
