@@ -1,97 +1,158 @@
-import { Project, SyntaxKind } from 'ts-morph';
+// src/ast/extract.ts
+import ts from 'typescript';
 import type { FileExtraction, ExtractedSymbol, ExtractedImport } from '../types.js';
 
-function jsdocOf(node: { getJsDocs?: () => Array<{ getCommentText(): string | undefined }> }): string {
-  const docs = node.getJsDocs?.() ?? [];
-  return docs.map((d) => d.getCommentText() ?? '').join(' ').trim();
+function scriptKind(filePath: string): ts.ScriptKind {
+  if (filePath.endsWith('.tsx')) return ts.ScriptKind.TSX;
+  if (filePath.endsWith('.jsx')) return ts.ScriptKind.JSX;
+  if (filePath.endsWith('.js')) return ts.ScriptKind.JS;
+  return ts.ScriptKind.TS;
+}
+
+function hasExportModifier(node: ts.Node): boolean {
+  const mods = ts.canHaveModifiers(node) ? ts.getModifiers(node) : undefined;
+  return mods?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword) ?? false;
+}
+
+function jsdocText(node: ts.Node): string {
+  const parts: string[] = [];
+  for (const item of ts.getJSDocCommentsAndTags(node)) {
+    if (ts.isJSDoc(item) && item.comment) {
+      parts.push(
+        typeof item.comment === 'string'
+          ? item.comment
+          : item.comment.map((c) => c.text).join(''),
+      );
+    }
+  }
+  return parts.join(' ').trim();
+}
+
+function lineOf(sf: ts.SourceFile, node: ts.Node): number {
+  return sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
+}
+
+function paramsText(sf: ts.SourceFile, params: ts.NodeArray<ts.ParameterDeclaration>): string {
+  return params.map((p) => p.getText(sf)).join(', ');
+}
+
+function callSignature(
+  sf: ts.SourceFile,
+  name: string,
+  params: ts.NodeArray<ts.ParameterDeclaration>,
+  ret: ts.TypeNode | undefined,
+): string {
+  const retText = ret?.getText(sf);
+  return `${name}(${paramsText(sf, params)})${retText ? ': ' + retText : ''}`;
 }
 
 export function extractFromSource(filePath: string, source: string): FileExtraction {
-  const project = new Project({
-    useInMemoryFileSystem: true,
-    compilerOptions: { allowJs: true },
-  });
-  const sf = project.createSourceFile(filePath, source, { overwrite: true });
-
+  const sf = ts.createSourceFile(filePath, source, ts.ScriptTarget.Latest, true, scriptKind(filePath));
   const symbols: ExtractedSymbol[] = [];
-  const push = (s: ExtractedSymbol) => symbols.push(s);
-
-  // Functions
-  for (const fn of sf.getFunctions()) {
-    const name = fn.getName();
-    if (!name) continue;
-    const params = fn.getParameters().map((p) => p.getText()).join(', ');
-    const ret = fn.getReturnTypeNode()?.getText();
-    push({
-      kind: 'function',
-      name,
-      signature: `${name}(${params})${ret ? ': ' + ret : ''}`,
-      exported: fn.isExported(),
-      startLine: fn.getStartLineNumber(),
-      jsdoc: jsdocOf(fn as never),
-    });
-  }
-
-  // Classes + methods
-  for (const cls of sf.getClasses()) {
-    const name = cls.getName();
-    if (!name) continue;
-    push({
-      kind: 'class',
-      name,
-      signature: `class ${name}`,
-      exported: cls.isExported(),
-      startLine: cls.getStartLineNumber(),
-      jsdoc: jsdocOf(cls as never),
-    });
-    for (const m of cls.getMethods()) {
-      const params = m.getParameters().map((p) => p.getText()).join(', ');
-      const ret = m.getReturnTypeNode()?.getText();
-      push({
-        kind: 'method',
-        name: `${name}.${m.getName()}`,
-        signature: `${m.getName()}(${params})${ret ? ': ' + ret : ''}`,
-        exported: cls.isExported(),
-        startLine: m.getStartLineNumber(),
-        jsdoc: jsdocOf(m as never),
-      });
-    }
-  }
-
-  // Interfaces / type aliases / enums
-  for (const i of sf.getInterfaces()) {
-    push({ kind: 'interface', name: i.getName(), signature: `interface ${i.getName()}`, exported: i.isExported(), startLine: i.getStartLineNumber(), jsdoc: jsdocOf(i as never) });
-  }
-  for (const t of sf.getTypeAliases()) {
-    push({ kind: 'type', name: t.getName(), signature: `type ${t.getName()}`, exported: t.isExported(), startLine: t.getStartLineNumber(), jsdoc: jsdocOf(t as never) });
-  }
-  for (const e of sf.getEnums()) {
-    push({ kind: 'enum', name: e.getName(), signature: `enum ${e.getName()}`, exported: e.isExported(), startLine: e.getStartLineNumber(), jsdoc: jsdocOf(e as never) });
-  }
-
-  // Top-level variable declarations only
-  for (const vd of sf.getVariableDeclarations()) {
-    const stmt = vd.getVariableStatement();
-    if (!stmt || stmt.getParentOrThrow().getKind() !== SyntaxKind.SourceFile) continue;
-    push({
-      kind: 'const',
-      name: vd.getName(),
-      signature: vd.getName(),
-      exported: stmt.isExported(),
-      startLine: vd.getStartLineNumber(),
-      jsdoc: jsdocOf(stmt as never),
-    });
-  }
-
-  // Imports
   const imports: ExtractedImport[] = [];
-  for (const imp of sf.getImportDeclarations()) {
-    const module = imp.getModuleSpecifierValue();
-    if (imp.getDefaultImport()) imports.push({ module, importedName: 'default' });
-    if (imp.getNamespaceImport()) imports.push({ module, importedName: '*' });
-    for (const n of imp.getNamedImports()) imports.push({ module, importedName: n.getName() });
-    if (!imp.getDefaultImport() && !imp.getNamespaceImport() && imp.getNamedImports().length === 0) {
-      imports.push({ module, importedName: '' }); // side-effect import
+
+  for (const stmt of sf.statements) {
+    if (ts.isFunctionDeclaration(stmt) && stmt.name) {
+      const name = stmt.name.text;
+      symbols.push({
+        kind: 'function',
+        name,
+        signature: callSignature(sf, name, stmt.parameters, stmt.type),
+        exported: hasExportModifier(stmt),
+        startLine: lineOf(sf, stmt),
+        jsdoc: jsdocText(stmt),
+      });
+    } else if (ts.isClassDeclaration(stmt) && stmt.name) {
+      const name = stmt.name.text;
+      const exported = hasExportModifier(stmt);
+      symbols.push({
+        kind: 'class',
+        name,
+        signature: `class ${name}`,
+        exported,
+        startLine: lineOf(sf, stmt),
+        jsdoc: jsdocText(stmt),
+      });
+      for (const member of stmt.members) {
+        if (ts.isMethodDeclaration(member) && member.name && ts.isIdentifier(member.name)) {
+          const mName = member.name.text;
+          symbols.push({
+            kind: 'method',
+            name: `${name}.${mName}`,
+            signature: callSignature(sf, mName, member.parameters, member.type),
+            exported,
+            startLine: lineOf(sf, member),
+            jsdoc: jsdocText(member),
+          });
+        }
+      }
+    } else if (ts.isInterfaceDeclaration(stmt)) {
+      symbols.push({
+        kind: 'interface',
+        name: stmt.name.text,
+        signature: `interface ${stmt.name.text}`,
+        exported: hasExportModifier(stmt),
+        startLine: lineOf(sf, stmt),
+        jsdoc: jsdocText(stmt),
+      });
+    } else if (ts.isTypeAliasDeclaration(stmt)) {
+      symbols.push({
+        kind: 'type',
+        name: stmt.name.text,
+        signature: `type ${stmt.name.text}`,
+        exported: hasExportModifier(stmt),
+        startLine: lineOf(sf, stmt),
+        jsdoc: jsdocText(stmt),
+      });
+    } else if (ts.isEnumDeclaration(stmt)) {
+      symbols.push({
+        kind: 'enum',
+        name: stmt.name.text,
+        signature: `enum ${stmt.name.text}`,
+        exported: hasExportModifier(stmt),
+        startLine: lineOf(sf, stmt),
+        jsdoc: jsdocText(stmt),
+      });
+    } else if (ts.isVariableStatement(stmt)) {
+      const exported = hasExportModifier(stmt);
+      const jsdoc = jsdocText(stmt);
+      for (const decl of stmt.declarationList.declarations) {
+        if (!ts.isIdentifier(decl.name)) continue; // skip destructuring patterns
+        const name = decl.name.text;
+        symbols.push({
+          kind: 'const',
+          name,
+          signature: name,
+          exported,
+          startLine: lineOf(sf, decl),
+          jsdoc,
+        });
+      }
+    } else if (ts.isImportDeclaration(stmt)) {
+      if (!ts.isStringLiteral(stmt.moduleSpecifier)) continue;
+      const module = stmt.moduleSpecifier.text;
+      const clause = stmt.importClause;
+      if (!clause) {
+        imports.push({ module, importedName: '' }); // side-effect import
+        continue;
+      }
+      let added = false;
+      if (clause.name) {
+        imports.push({ module, importedName: 'default' });
+        added = true;
+      }
+      if (clause.namedBindings) {
+        if (ts.isNamespaceImport(clause.namedBindings)) {
+          imports.push({ module, importedName: '*' });
+          added = true;
+        } else {
+          for (const el of clause.namedBindings.elements) {
+            imports.push({ module, importedName: el.name.text });
+            added = true;
+          }
+        }
+      }
+      if (!added) imports.push({ module, importedName: '' });
     }
   }
 

@@ -42,11 +42,12 @@ Remove the per-file `git.log` loop from `src/scanner/scan.ts`. Add a new module
 Command:
 
 ```
-git log --name-only --format=__C__%H%x00%ct
+git log --name-only --format=__C__%ct
 ```
 
 - `__C__` is a record marker prefixing each commit header line.
-- `%H` = commit hash, `%x00` = NUL separator, `%ct` = committer unix timestamp.
+- `%ct` = committer unix timestamp. (The commit hash was unused downstream, so it is
+  not emitted — the marker alone disambiguates header lines from file lines.)
 - Lines after a header until the next marker / blank are the files touched by that commit.
 
 Parse stdout once into:
@@ -185,8 +186,10 @@ Mapping rules:
 
 - `git-meta`: git binary missing or not a repo → return empty map, no throw
   (preserves today's behavior). Boundary-level catch, not per-file.
-- Parser throw on a single file → push warning + skip (unchanged). The `parse` task still
-  completes; warning shows in the footer count.
+- Parser throw on a single file → push warning + skip. The `parse` task still completes;
+  warning shows in the footer count. Note: `ts.createSourceFile` is error-tolerant and does
+  not throw on malformed syntax (unlike the old ts-morph path), so this catch now fires only
+  on truly exceptional errors — a robustness improvement, not a regression.
 - A listr2 task rejects only on a fatal error (e.g. db open failure). Otherwise the scan
   always runs to completion.
 
