@@ -85,18 +85,31 @@ const PLAN_CHECKS: PlanCheck[] = [reuseCandidateCheck, dangerousTargetCheck];
 Pipeline: `PLAN_CHECKS.filter(c => c.enabled(config)).flatMap(c => c.run(ctx))`. Adding a future check (e.g. pattern-violation, or report-bound enrichment) is appending one registry entry — zero rewiring. This is the scalability seam.
 
 **1. `reuseCandidateCheck`** — gated by `validate.checkDuplicates`.
-- For each proposed **symbol** with `create`/`unknown` action: retrieve index hits via `search/search.ts` (FTS5), score each with **symbol-similarity** (the shared helper, §4.3); take the best cross-file hit (`path` ≠ any proposed file); if similarity ≥ `validate.duplicateThreshold` → `reuse-candidate` finding "Plan proposes `X`; reuse existing `Y` at `path:line`."
-- For each proposed **file** with `create` action: score basename / derived-symbol similarity against existing indexed files (e.g. plan's `refund-v2.service.ts` vs indexed `refund.service.ts` owning `RefundService`); above threshold → `reuse-candidate` finding.
+
+A plan declares intent by **name only** — it has no function signature yet. The shared 50/50 name+signature `symbolSimilarity` (used by `validate-diff`, where the new code's signature *is* known) caps a signatureless input at 0.5 and could never reach the 0.7 default. Plan reuse therefore scores with a purpose-built **name-containment** metric (`nameContainment`, §4.3): how much of an *existing* symbol's meaningful tokens are echoed by the proposed name.
+
+- For each proposed **symbol** with `create`/`unknown` action: retrieve index hits via `search/search.ts` (FTS5 over the proposed name's tokens); score each cross-target hit with `nameContainment(proposedName, hit.name)`; best hit ≥ `validate.duplicateThreshold` → `reuse-candidate` finding "plan proposes `X`; existing `Y` at `path:line` already covers this — extend it instead of creating new." Example: `PartialRefundService` (`{partial, refund, service}`) vs existing `RefundService` (`{refund, service}`) → containment `2/2 = 1.0` → fires; `PaymentService` vs `RefundService` → `{service}/2 = 0.5` → does not.
+- For each proposed **file** with `create` action: compare the proposed file's basename-without-extension against every indexed file's basename via the same `nameContainment`; best ≥ threshold and `path` ≠ proposed path → `reuse-candidate` (e.g. plan's `refund-v2.service.ts` → `{refund, v2, service}` vs indexed `refund.service.ts` → `{refund, service}` → `1.0`).
+
+**Single-token guard (false-positive control):** `nameContainment` returns 0 when the *existing* symbol tokenizes to a single token unless the proposed name is exactly that one token. This stops a short common name like `validate` from matching every `validate*` proposal while still catching exact duplicates.
 
 **2. `dangerousTargetCheck`** — gated by `validate.checkDangerous`.
 - Source is the **union** of two rules (a deliberate difference from `validate-diff`, which only consults the index map of existing files):
-  1. **Config glob match:** the proposed file path matches a `config.dangerousPaths` glob. This catches **proposed new files that do not exist in the index yet** (e.g. a new `src/modules/payment/refund-v2.service.ts`).
+  1. **Config glob match:** the proposed file path matches a `config.dangerous.paths` glob. This catches **proposed new files that do not exist in the index yet** (e.g. a new `src/modules/payment/refund-v2.service.ts`). Matching uses the already-installed `ignore` dependency (gitignore-style semantics), wrapped in a small `src/validate/glob.ts` helper so the dependency choice is isolated behind one interface.
   2. **Index map match:** `scorer/score.ts#findDangerousFiles(db, config)` map (importer-threshold + entrypoint rules) for proposed paths that already exist.
-- Each match → `dangerous-target` finding with the matching reason.
+- Each match → `dangerous-target` finding with the matching reason. A path matched by both rules yields one finding (config-glob reason takes precedence).
+
+**Config gap closed:** the shipped MVP `ConfigSchema` has only `dangerous.importerThreshold` — no glob list, despite PRD §12 listing `dangerousPaths`. This cycle adds **one** new config key, `dangerous.paths` (§6), which the config-glob rule consumes. This is the only new config key in this cycle.
 
 ### 4.3 Shared similarity — `src/validate/similarity.ts`
 
-The symbol-similarity helper currently living inside `validate-diff`'s `src/validate/checks.ts` is **extracted** into `src/validate/similarity.ts` and consumed by both `checks.ts` (diff) and `plan-checks.ts` (plan). 50/50 token-Jaccard of name and signature, built on the shared `tokenize`. No parallel ranking logic is created (clean-code DRY). `validate-diff`'s existing tests must stay green across the extraction.
+The similarity primitives currently inlined in `validate-diff`'s `src/validate/checks.ts` are **extracted** into `src/validate/similarity.ts`, which becomes the single home for token-based comparison built on the shared `tokenize`:
+
+- `jaccard(a, b)` — symmetric token-Jaccard (private helper, exported for reuse).
+- `symbolSimilarity(a, b)` — 50/50 name+signature Jaccard. Used by `checks.ts` (diff). Unchanged behavior.
+- `nameContainment(proposedName, existingName)` — `|tokens(proposed) ∩ tokens(existing)| / |tokens(existing)|`, with the single-token guard (§4.2). Used by `plan-checks.ts` (plan).
+
+`checks.ts` re-exports `symbolSimilarity` from `similarity.ts` so existing importers (e.g. `validate-checks.test.ts`) keep resolving. No parallel ranking logic is created (clean-code DRY). `validate-diff`'s existing tests must stay green across the extraction.
 
 ### 4.4 Assemble + render — extend `src/validate/report.ts`
 
@@ -138,7 +151,7 @@ interface ValidationReport {
 
 ## 6. Config
 
-**Reuse the existing `validate` block** from the `validate-diff` cycle — no new keys:
+**Reuse the existing `validate` block** from the `validate-diff` cycle (no changes):
 
 ```ts
 validate: {
@@ -149,7 +162,16 @@ validate: {
 }
 ```
 
-`dangerous.importerThreshold` and `config.dangerousPaths` are reused for the dangerous-target check.
+**One new key** is added to the existing `dangerous` block — `paths`, the glob list the config-glob rule (§4.2) consumes:
+
+```ts
+dangerous: {
+  importerThreshold: number;  // existing, default 5
+  paths: string[];            // NEW, default [] — gitignore-style globs for dangerous-by-path
+}
+```
+
+`dangerous.importerThreshold` (entrypoint + importer rules via `findDangerousFiles`) and the new `dangerous.paths` globs together drive the dangerous-target check. Default `[]` keeps behavior opt-in and backward-compatible: existing configs gain the key with an empty default and see no change until they populate it.
 
 ## 7. Exit codes & severity policy (mirrors validate-diff §7)
 
@@ -174,6 +196,7 @@ src/
     plan-parse.ts      # plan text → ProposedTarget[] (structured + heuristic hybrid)
     plan-checks.ts     # PlanCheck registry: reuse-candidate + dangerous-target producers
     similarity.ts      # extracted shared symbol-similarity (DRY w/ checks.ts)
+    glob.ts            # dangerous.paths glob matcher (wraps `ignore` dep)
     report.ts          # EXTEND: FindingKind union, source 'plan', plan writer/render
   core/
     run-validate-plan.ts
@@ -187,8 +210,8 @@ Dependency direction unchanged: `commands → core → validate`. `validate` rea
 
 A plan is prose; over-eager symbol extraction flags noise, and a nagging tool gets ignored (PRD Risk 4). Mitigations, all in this design:
 
-- **Tokenizer suppression** — every heuristic symbol candidate passes the existing stopword/short-token filter; prose words that tokenize to nothing are dropped.
-- **Signature-aware similarity** — name-only matches cap at 0.5 via the 50/50 name/signature weighting (shared helper), below the 0.7 default; only same-name *and* same-shape proposals fire.
+- **Tokenizer suppression** — every heuristic symbol candidate passes the existing stopword/short-token filter; prose words that tokenize to nothing are dropped. A proposed target whose name tokenizes to nothing is skipped for the reuse check.
+- **Containment single-token guard** — `nameContainment` (§4.2) refuses to fire on a single-token existing name unless the proposed name matches it exactly, so common short names (`validate`, `index`, `handler`) don't match every echo.
 - **Action gating** — declared `modify` intent never raises a reuse finding; only `create`/`unknown` do.
 - **Warn-only default** — false positives cost a log line, not a blocked workflow, until the team opts into `--block`.
 - **Confidence field** — structured (`high`) vs heuristic (`low`) confidence is carried on every target, available to gate output verbosity or future thresholds without re-parsing.
