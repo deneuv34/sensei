@@ -2,69 +2,146 @@
 
 > Before your AI agent writes code, Sensei tells it what already exists, what to reuse, and what not to touch.
 
-Sensei is a local-first, deterministic CLI for TypeScript/JavaScript repos. It scans your code into a local SQLite symbol index, then produces a ranked "context report" for any task you describe: which existing functions to reuse, and which high-impact files not to casually edit.
+Sensei is a **local-first, deterministic** CLI for TypeScript/JavaScript repos. No API key, no network, no LLM in the loop. It scans your code into a local SQLite symbol index, then answers two questions an AI coding agent almost never gets right on its own:
 
-## Install (local dev)
+1. **What already exists here that I should reuse?**
+2. **Which files are load-bearing and dangerous to touch?**
 
-```bash
-npm install
-npm run build
+---
+
+## Why Sensei?
+
+AI coding agents are powerful and context-blind. Dropped into a real repo, they reliably make the same expensive mistakes:
+
+- **They reimplement what's already there.** The agent writes a new `formatCurrency`, `getUser`, or `validateEmail` because it never saw the one you already shipped three folders away. Now you maintain two.
+- **They edit the wrong files.** The agent casually rewrites your DI entrypoint, a 15-importer types module, or the auth barrel — the exact files where a small mistake breaks everything.
+- **They have no memory of your codebase.** Every session starts cold. The agent's "context" is whatever happened to fit in the prompt, not what's actually in the repo.
+
+The usual fix — stuffing the whole codebase into the model's context — is slow, expensive, non-deterministic, and still misses things. Sensei takes the opposite approach: **a cheap, deterministic index that hands the agent a short, ranked, factual brief before it writes a line.**
+
+Same repo + same task = same answer, every time. You can diff it, cache it, and trust it in CI.
+
+```
+You: "add password reset"
+        │
+        ▼
+   sensei context "add password reset"
+        │
+        ▼
+   ┌────────────────────────────────────────────┐
+   │ REUSE: src/auth/token.ts:12 issueToken()    │
+   │ REUSE: src/mail/send.ts:8 sendEmail()       │
+   │ AVOID: src/types.ts (15 importers)          │
+   │ AVOID: src/index.ts (entrypoint)            │
+   └────────────────────────────────────────────┘
+        │
+        ▼
+   feed to your agent → it reuses instead of reinventing
+        │
+        ▼
+   sensei validate-diff  → catches duplicates/dangerous edits before commit
 ```
 
-> Note: this project uses npm. If you use pnpm and have a `pnpm-workspace.yaml` higher in your home directory, run pnpm commands with `--ignore-workspace`.
+---
 
-## Usage
+## Install
+
+Requires Node `>=22`.
+
+```bash
+git clone https://github.com/deneuv34/sensei.git
+cd sensei
+npm install
+npm run build
+npm link        # optional: put `sensei` on your PATH
+```
+
+> This project uses npm. If you use pnpm and have a `pnpm-workspace.yaml` higher in your home directory, run pnpm commands with `--ignore-workspace`.
+
+## Quickstart
 
 ```bash
 sensei init                          # create .sensei/ (config + agent rules)
 sensei scan                          # build the local symbol index
-sensei context "add password reset"  # write .sensei/current-task-context.md + reuse-candidates.json
+sensei context "add password reset"  # write .sensei/current-task-context.md
 sensei export --target claude        # print a Claude-ready context block
 ```
 
+Pipe the export straight into your agent's prompt, or point the agent at `.sensei/current-task-context.md`.
+
 ## Enforcement
 
-After your agent writes code, check the diff against the index:
+`context` is advice up front. `validate-diff` is a check after the fact: it compares the changed code against the index and flags two things.
 
 ```bash
 sensei validate-diff                  # check staged changes (warn-only)
 sensei validate-diff --against main   # check this branch vs main
+sensei validate-diff --all            # check the whole working tree
 sensei validate-diff --block          # exit non-zero on any finding (for CI/hooks)
+sensei validate-diff --json           # machine-readable output
 ```
 
-Findings: **duplicate-candidate** (a new symbol closely matches existing code — reuse it) and **dangerous-edit** (you touched a high-fan-in or entrypoint file). The JSON form is written to `.sensei/last-validation.json`.
+| Finding | Meaning |
+|---|---|
+| **duplicate-candidate** | A newly introduced symbol closely matches existing code (token-Jaccard similarity ≥ threshold). Reuse it instead of reimplementing. |
+| **dangerous-edit** | You touched a high-fan-in or entrypoint file — the kind where a small mistake has wide blast radius. |
 
-Install it as a git hook so it runs automatically:
+The JSON form is always written to `.sensei/last-validation.json`.
+
+Wire it into git so it runs automatically:
 
 ```bash
 sensei guard install                  # warn-only pre-commit hook
 sensei guard install --block          # block commits on findings
 sensei guard install --hook pre-push  # run on push instead
+sensei guard run                      # run the check manually
 sensei guard uninstall
 ```
 
-The hook never breaks your commit on a tooling error (missing index, parse failure) unless you installed it with `--block`.
+The hook is installed as an idempotent **managed block** — it coexists with any hook content you already have. It never breaks your commit on a tooling error (missing index, parse failure) unless you installed it with `--block`.
 
 ## How it works
 
-1. `scan` walks the repo (respecting `.gitignore`), parses TS/JS with `ts-morph`, and indexes symbols + the import graph into `.sensei/cache.db` (SQLite + FTS5). Re-scans are incremental via per-file content hashing.
-2. `context` tokenizes your task, retrieves candidate symbols via FTS5, and scores them with a deterministic heuristic (name/signature overlap, path/domain match, exported, git-recency, tests-nearby). It also flags high-fan-in "do not touch" files.
-3. `export` renders the latest report for an AI agent.
+1. **`scan`** walks the repo (respecting `.gitignore`), parses TS/JS with `ts-morph`, and indexes symbols + the import graph into `.sensei/cache.db` (SQLite + FTS5). Re-scans are incremental via per-file content hashing.
+2. **`context`** tokenizes your task, retrieves candidate symbols via FTS5, and scores them with a deterministic heuristic (name/signature overlap, path/domain match, exported, git-recency, tests-nearby). It also flags high-fan-in "do not touch" files from the import graph.
+3. **`validate-diff`** resolves changed files (staged / working-tree / vs a ref), extracts the symbols each change *introduces*, and scores them against the index with a purpose-built token-Jaccard similarity (½ name + ½ signature). Dangerous edits come from the same fan-in analysis as `context`.
+4. **`export`** renders the latest report for an AI agent. **`guard`** installs the git hook.
 
-No API key. No network. Same repo + same task = same ranking.
+No API key. No network. Deterministic.
 
 ## Configuration
 
-`.sensei/sensei.config.json` controls include/ignore globs, `context.topN`, scoring weights, and the dangerous-file `importerThreshold`.
+`.sensei/sensei.config.json` controls:
+
+- include / ignore globs
+- `context.topN` (how many reuse candidates to surface)
+- scoring weights
+- dangerous-file `importerThreshold`
+- `validate` block: `duplicateThreshold` (default `0.7`), `block`, `checkDuplicates`, `checkDangerous`
 
 ## Development
 
 ```bash
-npm test         # run the vitest suite
+npm test         # run the vitest suite (55 tests)
 npm run typecheck
 npm run build
 ```
 
-## Status
+## Versioning
 
-MVP + enforcement. Shipped: `init` / `scan` / `context` / `export`, plus `validate-diff` / `guard`. Planned next: `validate-plan`, GitHub Action, embeddings, multi-language, and Cursor/Codex exporters.
+This repo follows [Semantic Versioning](https://semver.org/). See [CHANGELOG.md](./CHANGELOG.md) for the full history.
+
+- **`0.1.0`** — MVP: `init`, `scan`, `context`, `export`.
+- **`0.2.0`** — Enforcement: `validate-diff`, `guard`.
+
+Pre-`1.0.0`: the CLI surface and config schema may still change between minor versions.
+
+## Roadmap
+
+Shipped: `init` · `scan` · `context` · `export` · `validate-diff` · `guard`.
+
+Planned: `validate-plan`, a GitHub Action, embeddings-based retrieval, multi-language support, and Cursor/Codex exporters.
+
+## License
+
+MIT

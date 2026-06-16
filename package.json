@@ -1,6 +1,6 @@
 {
   "name": "sensei",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Before your AI agent writes code, Sensei tells it what already exists, what to reuse, and what not to touch.",
   "type": "module",
   "bin": { "sensei": "./bin/run.js" },
