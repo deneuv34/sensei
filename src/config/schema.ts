@@ -23,7 +23,10 @@ export const ConfigSchema = z.object({
     })
     .default({}),
   dangerous: z
-    .object({ importerThreshold: z.number().int().positive().default(5) })
+    .object({
+      importerThreshold: z.number().int().positive().default(5),
+      paths: z.array(z.string()).default([]),
+    })
     .default({}),
   validate: z
     .object({

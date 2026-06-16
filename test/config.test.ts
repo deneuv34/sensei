@@ -57,3 +57,19 @@ describe('validate config block', () => {
     expect(cfg.validate.checkDuplicates).toBe(true); // unspecified keys keep defaults
   });
 });
+
+describe('dangerous.paths', () => {
+  it('defaults to an empty array', () => {
+    expect(ConfigSchema.parse({}).dangerous.paths).toEqual([]);
+  });
+
+  it('accepts gitignore-style globs', () => {
+    const c = ConfigSchema.parse({ dangerous: { paths: ['src/auth/**', 'prisma/migrations/**'] } });
+    expect(c.dangerous.paths).toEqual(['src/auth/**', 'prisma/migrations/**']);
+  });
+
+  it('still defaults importerThreshold alongside paths', () => {
+    const c = ConfigSchema.parse({ dangerous: { paths: ['x/**'] } });
+    expect(c.dangerous.importerThreshold).toBe(5);
+  });
+});
