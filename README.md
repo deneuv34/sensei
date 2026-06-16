@@ -22,6 +22,29 @@ sensei context "add password reset"  # write .sensei/current-task-context.md + r
 sensei export --target claude        # print a Claude-ready context block
 ```
 
+## Enforcement
+
+After your agent writes code, check the diff against the index:
+
+```bash
+sensei validate-diff                  # check staged changes (warn-only)
+sensei validate-diff --against main   # check this branch vs main
+sensei validate-diff --block          # exit non-zero on any finding (for CI/hooks)
+```
+
+Findings: **duplicate-candidate** (a new symbol closely matches existing code — reuse it) and **dangerous-edit** (you touched a high-fan-in or entrypoint file). The JSON form is written to `.sensei/last-validation.json`.
+
+Install it as a git hook so it runs automatically:
+
+```bash
+sensei guard install                  # warn-only pre-commit hook
+sensei guard install --block          # block commits on findings
+sensei guard install --hook pre-push  # run on push instead
+sensei guard uninstall
+```
+
+The hook never breaks your commit on a tooling error (missing index, parse failure) unless you installed it with `--block`.
+
 ## How it works
 
 1. `scan` walks the repo (respecting `.gitignore`), parses TS/JS with `ts-morph`, and indexes symbols + the import graph into `.sensei/cache.db` (SQLite + FTS5). Re-scans are incremental via per-file content hashing.
@@ -44,4 +67,4 @@ npm run build
 
 ## Status
 
-MVP (thin vertical slice). Planned next: `guard` / `validate-plan` / `validate-diff`, embeddings, multi-language, and Cursor/Codex exporters.
+MVP + enforcement. Shipped: `init` / `scan` / `context` / `export`, plus `validate-diff` / `guard`. Planned next: `validate-plan`, GitHub Action, embeddings, multi-language, and Cursor/Codex exporters.
