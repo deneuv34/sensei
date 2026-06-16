@@ -44,7 +44,9 @@ CHANGELOG.md                    # 0.x.0 entry (CHANGED, at release time)
 
 1. **Setup Node** — `actions/setup-node@v4` with `node-version` input (default `24`) and npm cache.
 2. **Resolve base ref** — compute the diff base (see §4) into a step output.
-3. **Fetch base ref** — `git fetch --no-tags --depth=1 origin <base>` so `validate-diff --against` has the ref. PR checkouts contain only the merge commit, so the base must be fetched explicitly.
+3. **Fetch base ref** — `git fetch --no-tags origin +refs/heads/<base>:refs/remotes/origin/<base>` so `validate-diff --against origin/<base>` has the ref as a tracked branch. PR checkouts do not include the base branch by default, so it must be fetched explicitly.
+
+   **Prerequisite:** `validate-diff` diffs `origin/<base>...HEAD` (three-dot — merge-base to HEAD), so the **merge-base must exist in local history**. Consumers must check out with `actions/checkout@v4` and `fetch-depth: 0` (full history). The Action documents this and fails with a clear message if the merge-base is unreachable (exit `2`).
 4. **Scan** — `npx @deneuv34/sensei@<version> scan` (builds `.sensei/cache.db` from defaults; no `init` required).
 5. **Validate** — `npx @deneuv34/sensei@<version> validate-diff --against origin/<base> [--block] --json`, tee'd to the log and captured for output parsing.
 6. **Emit outputs** — parse the JSON report into `blocked` / `findings` / `report-path` step outputs (§3).
@@ -108,7 +110,7 @@ The composite Action lets the CLI's non-zero exit propagate to fail the step; it
 **Edge cases:**
 
 - **Consumer repo has no `.sensei/` config** → `scan` uses built-in defaults and still produces an index. No `sensei init` step required.
-- **Shallow checkout** (PR default `fetch-depth: 1`) → base ref absent locally; step 3 fetches it. If the fetch fails (e.g. base branch deleted), the validate step errors with a clear message (exit `2`).
+- **Shallow checkout** (`fetch-depth: 1`) → the three-dot merge-base may be unreachable, so `validate-diff` errors (exit `2`). The Action requires consumers to check out with `fetch-depth: 0`; the README example and the dogfood workflow both set it. If the base fetch itself fails (e.g. base branch deleted), the step errors with a clear message (exit `2`).
 - **No changed files vs base** → empty findings → pass.
 - **Fork PRs** → gate-only means a read-only `GITHUB_TOKEN` is sufficient; no `pull-requests: write`, no secrets. Fork PRs are not blocked by missing write permission.
 - **`working-directory` set** → every step runs there; `report-path` is resolved relative to it.
