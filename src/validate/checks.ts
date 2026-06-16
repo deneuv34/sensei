@@ -4,26 +4,10 @@ import type { ExtractedSymbol } from '../types.js';
 import { tokenize } from '../text/tokenize.js';
 import { searchSymbols } from '../search/search.js';
 import { findDangerousFiles } from '../scorer/score.js';
+import { symbolSimilarity } from './similarity.js';
 import type { Finding, Severity } from './report.js';
 
-function jaccard(a: string[], b: string[]): number {
-  const sa = new Set(a);
-  const sb = new Set(b);
-  if (sa.size === 0 || sb.size === 0) return 0;
-  let inter = 0;
-  for (const t of sa) if (sb.has(t)) inter += 1;
-  const union = new Set([...sa, ...sb]).size;
-  return inter / union;
-}
-
-export function symbolSimilarity(
-  a: { name: string; signature: string },
-  b: { name: string; signature: string },
-): number {
-  const nameSim = jaccard(tokenize(a.name), tokenize(b.name));
-  const sigSim = jaccard(tokenize(a.signature), tokenize(b.signature));
-  return 0.5 * nameSim + 0.5 * sigSim;
-}
+export { symbolSimilarity } from './similarity.js';
 
 export function duplicateFindings(
   db: IndexDb,

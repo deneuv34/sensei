@@ -106,12 +106,31 @@ sensei guard uninstall
 
 The hook is installed as an idempotent **managed block** — it coexists with any hook content you already have. It never breaks your commit on a tooling error (missing index, parse failure) unless you installed it with `--block`.
 
+### Before code: `validate-plan`
+
+`validate-diff` checks code after it is written. `validate-plan` moves the same judgment earlier — to the agent's written plan, before any code exists. Hand it the plan an agent produced and it flags reuse violations and dangerous targets up front.
+
+```bash
+sensei validate-plan plan.md                      # check a plan file (warn-only)
+cat plan.md | sensei validate-plan --stdin        # pipe a plan straight in
+sensei validate-plan plan.md --block              # exit non-zero on any finding
+sensei validate-plan plan.md --json               # machine-readable output
+```
+
+| Finding | Meaning |
+|---|---|
+| **reuse-candidate** | The plan proposes creating a file/symbol whose name echoes existing code. Extend it instead of creating new. |
+| **dangerous-target** | The plan proposes touching a file under a `dangerous.paths` glob, a high-fan-in file, or an entrypoint — even if that file does not exist yet. |
+
+The plan is parsed with a hybrid reader: explicit `## Files` / `## New Symbols` sections when present, plus a heuristic fallback over prose. The JSON form is written to `.sensei/last-plan-validation.json`.
+
 ## How it works
 
 1. **`scan`** walks the repo (respecting `.gitignore`), parses TS/JS with `ts-morph`, and indexes symbols + the import graph into `.sensei/cache.db` (SQLite + FTS5). Re-scans are incremental via per-file content hashing.
 2. **`context`** tokenizes your task, retrieves candidate symbols via FTS5, and scores them with a deterministic heuristic (name/signature overlap, path/domain match, exported, git-recency, tests-nearby). It also flags high-fan-in "do not touch" files from the import graph.
 3. **`validate-diff`** resolves changed files (staged / working-tree / vs a ref), extracts the symbols each change *introduces*, and scores them against the index with a purpose-built token-Jaccard similarity (½ name + ½ signature). Dangerous edits come from the same fan-in analysis as `context`.
-4. **`export`** renders the latest report for an AI agent. **`guard`** installs the git hook.
+4. **`validate-plan`** parses an agent's plan into proposed files/symbols (structured sections + heuristic fallback) and runs the same reuse + dangerous checks against the index, using name-containment since a plan has no signatures yet. Dangerous targets also match `dangerous.paths` globs, so proposed *new* files are caught before they exist.
+5. **`export`** renders the latest report for an AI agent. **`guard`** installs the git hook.
 
 No API key. No network. Deterministic.
 
@@ -122,7 +141,7 @@ No API key. No network. Deterministic.
 - include / ignore globs
 - `context.topN` (how many reuse candidates to surface)
 - scoring weights
-- dangerous-file `importerThreshold`
+- dangerous-file `importerThreshold` and `dangerous.paths` (gitignore-style globs flagged by `validate-plan`/`validate-diff`)
 - `validate` block: `duplicateThreshold` (default `0.7`), `block`, `checkDuplicates`, `checkDangerous`
 
 ## Development
@@ -144,9 +163,9 @@ Pre-`1.0.0`: the CLI surface and config schema may still change between minor ve
 
 ## Roadmap
 
-Shipped: `init` · `scan` · `context` · `export` · `validate-diff` · `guard`.
+Shipped: `init` · `scan` · `context` · `export` · `validate-diff` · `validate-plan` · `guard`.
 
-Planned: `validate-plan`, a GitHub Action, embeddings-based retrieval, multi-language support, and Cursor/Codex exporters.
+Planned: a GitHub Action, embeddings-based retrieval, multi-language support, and Cursor/Codex exporters.
 
 ## License
 

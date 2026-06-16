@@ -8,3 +8,4 @@ export const contextMdPath = (cwd: string) => path.join(senseiDir(cwd), 'current
 export const candidatesJsonPath = (cwd: string) => path.join(senseiDir(cwd), 'reuse-candidates.json');
 export const agentRulesPath = (cwd: string) => path.join(senseiDir(cwd), 'agent-rules.md');
 export const lastValidationJsonPath = (cwd: string) => path.join(senseiDir(cwd), 'last-validation.json');
+export const lastPlanValidationJsonPath = (cwd: string) => path.join(senseiDir(cwd), 'last-plan-validation.json');
