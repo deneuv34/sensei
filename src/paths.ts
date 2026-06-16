@@ -7,3 +7,4 @@ export const dbPath = (cwd: string) => path.join(senseiDir(cwd), 'cache.db');
 export const contextMdPath = (cwd: string) => path.join(senseiDir(cwd), 'current-task-context.md');
 export const candidatesJsonPath = (cwd: string) => path.join(senseiDir(cwd), 'reuse-candidates.json');
 export const agentRulesPath = (cwd: string) => path.join(senseiDir(cwd), 'agent-rules.md');
+export const lastValidationJsonPath = (cwd: string) => path.join(senseiDir(cwd), 'last-validation.json');
