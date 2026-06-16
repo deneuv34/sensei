@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.5.0] - 2026-06-16
+
+### Added
+
+- **Shell autocomplete** — added oclif autocomplete support for `zsh`, `bash`, and `powershell` via `sensei autocomplete <shell>`.
+
 ## [0.4.0] - 2026-06-16
 
 ### Added
@@ -71,6 +77,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **`context`** — ranked reuse candidates + high-fan-in "do not touch" files for a described task.
 - **`export`** — render the latest context report for an AI agent (`--target claude`).
 
+[0.5.0]: https://github.com/deneuv34/sensei/releases/tag/v0.5.0
 [0.4.0]: https://github.com/deneuv34/sensei/releases/tag/v0.4.0
 [0.3.0]: https://github.com/deneuv34/sensei/releases/tag/v0.3.0
 [0.2.0]: https://github.com/deneuv34/sensei/releases/tag/v0.2.0

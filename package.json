@@ -1,6 +1,6 @@
 {
   "name": "@deneuv34/sensei",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Before your AI agent writes code, Sensei tells it what already exists, what to reuse, and what not to touch.",
   "type": "module",
   "license": "MIT",
@@ -49,6 +49,7 @@
   },
   "dependencies": {
     "@oclif/core": "^4.0.0",
+    "@oclif/plugin-autocomplete": "^3.2.50",
     "better-sqlite3": "^12.10.1",
     "fast-glob": "^3.3.0",
     "ignore": "^6.0.0",
@@ -66,7 +67,10 @@
     "bin": "sensei",
     "dirname": "sensei",
     "commands": "./dist/commands",
-    "topicSeparator": " "
+    "topicSeparator": " ",
+    "plugins": [
+      "@oclif/plugin-autocomplete"
+    ]
   },
   "pnpm": {
     "onlyBuiltDependencies": [
