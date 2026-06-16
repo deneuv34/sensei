@@ -1,6 +1,6 @@
 {
   "name": "@deneuv34/sensei",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Before your AI agent writes code, Sensei tells it what already exists, what to reuse, and what not to touch.",
   "type": "module",
   "license": "MIT",

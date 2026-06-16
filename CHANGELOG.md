@@ -5,11 +5,15 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.6.0] - 2026-06-16
 
 ### Added
 
-- **GitHub Action** — a reusable composite action (`uses: deneuv34/sensei@v1`) that runs `sensei scan` then `validate-diff --against <base>` to gate pull requests. Warn-only by default; set `block: true` to fail the check on findings. Requires `actions/checkout` with `fetch-depth: 0`. Inputs: `version`, `base`, `block`, `working-directory`, `node-version`. Outputs: `blocked`, `findings`, `report-path`.
+- **GitHub Action** — a reusable composite action (`uses: deneuv34/sensei@v1`) that gates pull requests. It builds the index from the **base** ref, then runs `validate-diff` against it, so symbols the PR introduces are correctly detected. Warn-only by default; set `block: true` to fail the check on findings. Requires `actions/checkout` with `fetch-depth: 0`. Inputs: `version`, `base`, `block`, `working-directory`, `node-version`. Outputs: `blocked`, `findings`, `report-path`.
+
+### Notes
+
+- The action scans the base tree (checkout base → `scan` → return to HEAD) rather than HEAD. Scanning HEAD would index the PR's new code, leaving nothing "introduced" for reuse detection to flag.
 
 ## [0.5.0] - 2026-06-16
 
@@ -83,6 +87,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **`context`** — ranked reuse candidates + high-fan-in "do not touch" files for a described task.
 - **`export`** — render the latest context report for an AI agent (`--target claude`).
 
+[0.6.0]: https://github.com/deneuv34/sensei/releases/tag/v0.6.0
 [0.5.0]: https://github.com/deneuv34/sensei/releases/tag/v0.5.0
 [0.4.0]: https://github.com/deneuv34/sensei/releases/tag/v0.4.0
 [0.3.0]: https://github.com/deneuv34/sensei/releases/tag/v0.3.0

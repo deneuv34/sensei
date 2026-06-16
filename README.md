@@ -160,6 +160,8 @@ This repo follows [Semantic Versioning](https://semver.org/). See [CHANGELOG.md]
 - **`0.2.0`** — Enforcement: `validate-diff`, `guard`.
 - **`0.3.0`** — Live scan TUI + batched git scan performance.
 - **`0.4.0`** — `validate-plan`: agent plan validation before code.
+- **`0.5.0`** — shell autocomplete (`zsh`, `bash`, `powershell`).
+- **`0.6.0`** — GitHub Action: gate pull requests in CI.
 
 Pre-`1.0.0`: the CLI surface and config schema may still change between minor versions.
 
