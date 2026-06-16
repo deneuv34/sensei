@@ -5,9 +5,10 @@ name: Publish to npm
 # via the Actions tab (workflow_dispatch) to publish the current
 # package.json version.
 #
-# Requires repo secret NPM_TOKEN — an npm "Automation" access token
-# (bypasses 2FA in CI). Create at npmjs.com → Access Tokens, then:
-#   gh secret set NPM_TOKEN
+# Uses npm trusted publishing (OIDC), so no long-lived NPM_TOKEN is
+# required. Configure the package on npmjs.com:
+#   Package Settings -> Trusted publishing -> GitHub Actions
+#   owner: deneuv34, repo: sensei, workflow filename: publish.yml
 
 on:
   release:
@@ -22,12 +23,12 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
           registry-url: https://registry.npmjs.org
-          cache: npm
+          package-manager-cache: false
       - run: npm ci
       - run: npm run build
       - run: npm test
@@ -40,6 +41,4 @@ jobs:
           echo "release tag=$TAG  package.json=$PKG"
           test "$TAG" = "$PKG"
 
-      - run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - run: npm publish --access public
