@@ -35,7 +35,8 @@
   },
   "files": [
     "dist",
-    "bin"
+    "bin",
+    "vendor"
   ],
   "engines": {
     "node": ">=22"
@@ -45,6 +46,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "vendor:grammars": "node scripts/vendor-grammars.mjs",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
@@ -56,11 +58,13 @@
     "listr2": "^10.2.1",
     "simple-git": "^3.25.0",
     "typescript": "^6.0.3",
+    "web-tree-sitter": "^0.25.10",
     "zod": "^3.23.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.0",
     "@types/node": "^22.0.0",
+    "tree-sitter-wasms": "^0.1.13",
     "vitest": "^4.1.9"
   },
   "oclif": {
