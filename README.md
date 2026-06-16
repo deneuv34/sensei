@@ -126,7 +126,7 @@ The plan is parsed with a hybrid reader: explicit `## Files` / `## New Symbols` 
 
 ## How it works
 
-1. **`scan`** walks the repo (respecting `.gitignore`), parses TS/JS with `ts-morph`, and indexes symbols + the import graph into `.sensei/cache.db` (SQLite + FTS5). Re-scans are incremental via per-file content hashing.
+1. **`scan`** walks the repo (respecting `.gitignore`), parses TS/JS with the raw `typescript` compiler API (error-tolerant, no type-checker), and indexes symbols + the import graph into `.sensei/cache.db` (SQLite + FTS5). Git metadata is collected in a single `git log` pass; re-scans are incremental via per-file content hashing.
 2. **`context`** tokenizes your task, retrieves candidate symbols via FTS5, and scores them with a deterministic heuristic (name/signature overlap, path/domain match, exported, git-recency, tests-nearby). It also flags high-fan-in "do not touch" files from the import graph.
 3. **`validate-diff`** resolves changed files (staged / working-tree / vs a ref), extracts the symbols each change *introduces*, and scores them against the index with a purpose-built token-Jaccard similarity (½ name + ½ signature). Dangerous edits come from the same fan-in analysis as `context`.
 4. **`validate-plan`** parses an agent's plan into proposed files/symbols (structured sections + heuristic fallback) and runs the same reuse + dangerous checks against the index, using name-containment since a plan has no signatures yet. Dangerous targets also match `dangerous.paths` globs, so proposed *new* files are caught before they exist.
