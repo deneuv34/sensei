@@ -25,6 +25,14 @@ export const ConfigSchema = z.object({
   dangerous: z
     .object({ importerThreshold: z.number().int().positive().default(5) })
     .default({}),
+  validate: z
+    .object({
+      block: z.boolean().default(false),
+      duplicateThreshold: z.number().min(0).max(1).default(0.7),
+      checkDuplicates: z.boolean().default(true),
+      checkDangerous: z.boolean().default(true),
+    })
+    .default({}),
 });
 
 export type SenseiConfig = z.infer<typeof ConfigSchema>;

@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { loadConfig, writeDefaultConfig } from '../src/config/load.js';
+import { DEFAULT_CONFIG, ConfigSchema } from '../src/config/schema.js';
 import { configPath } from '../src/paths.js';
 
 let dir: string;
@@ -36,5 +37,23 @@ describe('config', () => {
     fs.mkdirSync(path.dirname(configPath(dir)), { recursive: true });
     fs.writeFileSync(configPath(dir), JSON.stringify({ context: { topN: -1 } }));
     expect(() => loadConfig(dir)).toThrow(/Invalid sensei.config.json/);
+  });
+});
+
+describe('validate config block', () => {
+  it('defaults to warn-only with a 0.7 duplicate threshold and both checks on', () => {
+    expect(DEFAULT_CONFIG.validate).toEqual({
+      block: false,
+      duplicateThreshold: 0.7,
+      checkDuplicates: true,
+      checkDangerous: true,
+    });
+  });
+
+  it('accepts overrides', () => {
+    const cfg = ConfigSchema.parse({ validate: { block: true, duplicateThreshold: 0.9 } });
+    expect(cfg.validate.block).toBe(true);
+    expect(cfg.validate.duplicateThreshold).toBe(0.9);
+    expect(cfg.validate.checkDuplicates).toBe(true); // unspecified keys keep defaults
   });
 });
