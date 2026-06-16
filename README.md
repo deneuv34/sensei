@@ -147,7 +147,7 @@ No API key. No network. Deterministic.
 ## Development
 
 ```bash
-npm test         # run the vitest suite (55 tests)
+npm test         # run the vitest suite (101 tests)
 npm run typecheck
 npm run build
 ```
@@ -158,6 +158,8 @@ This repo follows [Semantic Versioning](https://semver.org/). See [CHANGELOG.md]
 
 - **`0.1.0`** — MVP: `init`, `scan`, `context`, `export`.
 - **`0.2.0`** — Enforcement: `validate-diff`, `guard`.
+- **`0.3.0`** — Live scan TUI + batched git scan performance.
+- **`0.4.0`** — `validate-plan`: agent plan validation before code.
 
 Pre-`1.0.0`: the CLI surface and config schema may still change between minor versions.
 

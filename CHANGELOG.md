@@ -5,6 +5,25 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] - 2026-06-16
+
+### Added
+
+- **`validate-plan <plan.md>`** — check an agent's written plan *before* it writes code (the early counterpart to `validate-diff`). Parses the plan into proposed files/symbols and emits two finding kinds:
+  - `reuse-candidate`: the plan proposes creating a file/symbol whose name echoes existing code (scored by name-containment, since a plan has no signatures yet — default threshold `0.7`). Extend it instead of creating new.
+  - `dangerous-target`: the plan proposes touching a `dangerous.paths` glob, a high-fan-in file, or an entrypoint — including **proposed new files that do not exist in the index yet**.
+  - Input: a plan file argument or `--stdin`. Flags: `--block` (non-zero exit on findings), `--json`. Writes `.sensei/last-plan-validation.json`.
+- **Hybrid plan parser** — reads explicit `## Files` / `## New Symbols` sections when present, with a heuristic fallback over prose (compound-name and code-token extraction, tokenizer stopword suppression).
+- **`dangerous.paths`** config — gitignore-style globs marking files as dangerous by path, consumed by `validate-plan` (and available to `validate-diff`).
+
+### Changed
+
+- Extracted the token-similarity helpers into `src/validate/similarity.ts` (shared by `validate-diff` and `validate-plan`); added `nameContainment`. Behavior of the existing `validate-diff` similarity is unchanged.
+
+### Notes
+
+- 39 new tests (101 total). Deterministic, no network, no API key. Backward-compatible: `dangerous.paths` defaults to `[]`.
+
 ## [0.3.0] - 2026-06-16
 
 ### Added
@@ -52,6 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **`context`** — ranked reuse candidates + high-fan-in "do not touch" files for a described task.
 - **`export`** — render the latest context report for an AI agent (`--target claude`).
 
+[0.4.0]: https://github.com/deneuv34/sensei/releases/tag/v0.4.0
 [0.3.0]: https://github.com/deneuv34/sensei/releases/tag/v0.3.0
 [0.2.0]: https://github.com/deneuv34/sensei/releases/tag/v0.2.0
 [0.1.0]: https://github.com/deneuv34/sensei/releases/tag/v0.1.0
