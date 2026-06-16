@@ -39,3 +39,23 @@ describe('IndexDb file rows', () => {
     db.close();
   });
 });
+
+describe('symbolsForFile', () => {
+  it('returns name/kind/signature for a file path, empty for unknown', () => {
+    const db = new IndexDb(':memory:');
+    db.migrate();
+    const fileId = db.upsertFile({
+      path: 'src/a.ts', hash: 'h', lang: 'ts', loc: 3, gitLastModified: null, gitCommitCount: 0,
+    });
+    db.insertSymbol(fileId, {
+      kind: 'function', name: 'foo', signature: 'foo(x: number): void',
+      exported: true, startLine: 1, jsdoc: '',
+    }, 'src/a.ts');
+
+    expect(db.symbolsForFile('src/a.ts')).toEqual([
+      { name: 'foo', kind: 'function', signature: 'foo(x: number): void' },
+    ]);
+    expect(db.symbolsForFile('src/missing.ts')).toEqual([]);
+    db.close();
+  });
+});

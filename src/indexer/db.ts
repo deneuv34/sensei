@@ -182,6 +182,17 @@ export class IndexDb {
       .all(matchExpr, limit) as SymbolHitRow[];
   }
 
+  symbolsForFile(path: string): Array<{ name: string; kind: string; signature: string }> {
+    return this.raw
+      .prepare(
+        `SELECT s.name, s.kind, s.signature
+         FROM symbols s JOIN files f ON f.id = s.file_id
+         WHERE f.path = ?
+         ORDER BY s.start_line`,
+      )
+      .all(path) as Array<{ name: string; kind: string; signature: string }>;
+  }
+
   mtimeStats(): { min: number | null; max: number | null } {
     return this.raw
       .prepare(
