@@ -1,0 +1,45 @@
+name: Publish to npm
+
+# Publishes @deneuv34/sensei to the public npm registry.
+# Trigger by publishing a GitHub Release (tag vX.Y.Z), or run manually
+# via the Actions tab (workflow_dispatch) to publish the current
+# package.json version.
+#
+# Requires repo secret NPM_TOKEN — an npm "Automation" access token
+# (bypasses 2FA in CI). Create at npmjs.com → Access Tokens, then:
+#   gh secret set NPM_TOKEN
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # required for npm provenance
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+
+      - name: Verify release tag matches package.json version
+        if: github.event_name == 'release'
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG="$(node -p "require('./package.json').version")"
+          echo "release tag=$TAG  package.json=$PKG"
+          test "$TAG" = "$PKG"
+
+      - run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
