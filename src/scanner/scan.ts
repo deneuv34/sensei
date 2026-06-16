@@ -61,14 +61,16 @@ export async function scanRepo(
 
   // Phase 2: one git-log pass, then attach metadata by lookup.
   const meta = await gitMetaMap(cwd);
+  let mapped = 0;
   for (const f of files) {
     const m = meta.get(f.path);
     if (m) {
       f.gitLastModified = m.lastModified;
       f.gitCommitCount = m.commitCount;
+      mapped++;
     }
   }
-  onProgress({ phase: 'gitmeta', done: meta.size, total: files.length, detail: `${meta.size} files mapped` });
+  onProgress({ phase: 'gitmeta', done: mapped, total: files.length, detail: `${mapped} files mapped` });
 
   return files;
 }

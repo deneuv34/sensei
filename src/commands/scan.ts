@@ -60,16 +60,19 @@ export default class Scan extends Command {
     const cwd = process.cwd();
     const coord = new ScanCoordinator();
 
-    const scanPromise: Promise<IndexResult> = runScan(cwd, coord.handle).then((r) => {
-      coord.finishAll();
-      return r;
-    });
+    const scanPromise: Promise<IndexResult> = runScan(cwd, coord.handle);
+    // Release every phase gate on completion OR failure so no listr task can hang.
+    void scanPromise.finally(() => coord.finishAll());
+    // Close the unhandled-rejection window; the real error is surfaced via `await` below.
+    scanPromise.catch(() => {});
 
     const phaseTask = (phase: ScanPhase) => async (_ctx: unknown, task: { output: string }) => {
       coord.bindOutput(phase, (s) => {
         task.output = s;
       });
-      await coord.promises.get(phase);
+      // Whichever settles first: the phase gate, or a scan failure (which fails the task
+      // so listr's exitOnError aborts cleanly instead of "completing" with stale output).
+      await Promise.race([coord.promises.get(phase)!, scanPromise.then(() => undefined)]);
     };
 
     const tasks = new Listr(
