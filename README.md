@@ -49,6 +49,12 @@ You: "add password reset"
 Requires Node `>=22`.
 
 ```bash
+npm install -g @deneuv34/sensei
+```
+
+This installs the `sensei` command. Or build from source:
+
+```bash
 git clone https://github.com/deneuv34/sensei.git
 cd sensei
 npm install
