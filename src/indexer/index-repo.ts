@@ -3,6 +3,7 @@ import path from 'node:path';
 import { IndexDb } from './db.js';
 import { extractFromSource } from '../ast/extract.js';
 import type { ScannedFile } from '../types.js';
+import { noopProgress, type ProgressFn } from '../core/progress.js';
 
 export interface IndexResult {
   fileCount: number;
@@ -27,7 +28,12 @@ function resolveModule(importerPath: string, moduleSpec: string, known: Set<stri
   return null;
 }
 
-export function indexFiles(db: IndexDb, cwd: string, files: ScannedFile[]): IndexResult {
+export function indexFiles(
+  db: IndexDb,
+  cwd: string,
+  files: ScannedFile[],
+  onProgress: ProgressFn = noopProgress,
+): IndexResult {
   const warnings: string[] = [];
   let changed = 0;
 
@@ -39,6 +45,7 @@ export function indexFiles(db: IndexDb, cwd: string, files: ScannedFile[]): Inde
       const fileId = db.upsertFile(f);
       if (existing && existing.hash === f.hash) continue; // unchanged: skip re-parse
       changed++;
+      onProgress({ phase: 'parse', done: changed, total: files.length, detail: f.path });
 
       let source: string;
       try {
@@ -67,6 +74,7 @@ export function indexFiles(db: IndexDb, cwd: string, files: ScannedFile[]): Inde
       const resolved = resolveModule(imp.file_path, imp.module, known);
       db.setImportResolution(imp.id, resolved ? idByPath.get(resolved) ?? null : null);
     }
+    onProgress({ phase: 'resolve', done: 0, total: 0 });
     db.recomputeImporterCounts();
   });
   tx();
