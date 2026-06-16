@@ -82,12 +82,26 @@ runs:
           git fetch --no-tags origin "+refs/heads/${BASE}:refs/remotes/origin/${BASE}"
         fi
 
-    - name: Scan
+    - name: Build index from base
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       env:
         VERSION: ${{ inputs.version }}
-      run: npx --yes "@deneuv34/sensei@${VERSION}" scan
+        BASE: ${{ steps.base.outputs.ref }}
+      run: |
+        # validate-diff flags symbols "introduced" relative to the index. The index
+        # must therefore reflect the BASE tree, not HEAD — otherwise HEAD's new code
+        # is already indexed and nothing is ever introduced. Scan base, then return.
+        head_sha="$(git rev-parse HEAD)"
+        if git rev-parse --verify --quiet "refs/remotes/origin/${BASE}" >/dev/null; then
+          base_ref="origin/${BASE}"
+        else
+          base_ref="${BASE}"
+        fi
+        echo "BASE_REF=${base_ref}" >> "$GITHUB_ENV"
+        git checkout --quiet --force "$base_ref"
+        npx --yes "@deneuv34/sensei@${VERSION}" scan
+        git checkout --quiet --force "$head_sha"
 
     - name: Validate diff
       id: validate
@@ -95,18 +109,12 @@ runs:
       working-directory: ${{ inputs.working-directory }}
       env:
         VERSION: ${{ inputs.version }}
-        BASE: ${{ steps.base.outputs.ref }}
         BLOCK: ${{ inputs.block }}
       run: |
-        if git rev-parse --verify --quiet "refs/remotes/origin/${BASE}" >/dev/null; then
-          against="origin/${BASE}"
-        else
-          against="${BASE}"
-        fi
         blockflag=""
         if [ "$BLOCK" = "true" ]; then blockflag="--block"; fi
         set +e
-        npx --yes "@deneuv34/sensei@${VERSION}" validate-diff --against "$against" $blockflag
+        npx --yes "@deneuv34/sensei@${VERSION}" validate-diff --against "$BASE_REF" $blockflag
         code=$?
         set -e
         report=".sensei/last-validation.json"
