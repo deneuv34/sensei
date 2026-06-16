@@ -1,13 +1,18 @@
 {
   "name": "@deneuv34/sensei",
-  "version": "0.2.0",
+  "version": "0.2.2",
   "description": "Before your AI agent writes code, Sensei tells it what already exists, what to reuse, and what not to touch.",
   "type": "module",
   "license": "MIT",
   "author": "Rangga Adhitya",
   "homepage": "https://github.com/deneuv34/sensei#readme",
-  "repository": { "type": "git", "url": "git+https://github.com/deneuv34/sensei.git" },
-  "bugs": { "url": "https://github.com/deneuv34/sensei/issues" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deneuv34/sensei.git"
+  },
+  "bugs": {
+    "url": "https://github.com/deneuv34/sensei/issues"
+  },
   "keywords": [
     "ai",
     "ai-agent",
@@ -22,10 +27,19 @@
     "codegen",
     "developer-tools"
   ],
-  "publishConfig": { "access": "public" },
-  "bin": { "sensei": "./bin/run.js" },
-  "files": ["dist", "bin"],
-  "engines": { "node": ">=22" },
+  "publishConfig": {
+    "access": "public"
+  },
+  "bin": {
+    "sensei": "bin/run.js"
+  },
+  "files": [
+    "dist",
+    "bin"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -55,6 +69,9 @@
     "topicSeparator": " "
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["better-sqlite3", "esbuild"]
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild"
+    ]
   }
 }
