@@ -1,7 +1,6 @@
 import fg from 'fast-glob';
 import { createRequire } from 'node:module';
 import type { Ignore } from 'ignore';
-import { simpleGit } from 'simple-git';
 
 // `ignore` ships CJS (module.exports = factory) with a .d.ts that NodeNext types as a
 // non-callable default. Load it via createRequire so the runtime value is the real factory.
@@ -12,6 +11,8 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import type { ScannedFile, Lang } from '../types.js';
 import type { SenseiConfig } from '../config/schema.js';
+import { gitMetaMap } from './git-meta.js';
+import { noopProgress, type ProgressFn } from '../core/progress.js';
 
 function extLang(rel: string): Lang {
   if (rel.endsWith('.tsx')) return 'tsx';
@@ -22,7 +23,11 @@ function extLang(rel: string): Lang {
 
 const toPosix = (p: string): string => p.split(path.sep).join('/');
 
-export async function scanRepo(cwd: string, config: SenseiConfig): Promise<ScannedFile[]> {
+export async function scanRepo(
+  cwd: string,
+  config: SenseiConfig,
+  onProgress: ProgressFn = noopProgress,
+): Promise<ScannedFile[]> {
   const entries = await fg(config.include, {
     cwd,
     ignore: config.ignore,
@@ -35,9 +40,9 @@ export async function scanRepo(cwd: string, config: SenseiConfig): Promise<Scann
   if (fs.existsSync(giPath)) ig.add(fs.readFileSync(giPath, 'utf8'));
   const kept = entries.filter((p) => !ig.ignores(p)).sort();
 
-  const git = simpleGit(cwd);
-  const isRepo = await git.checkIsRepo().catch(() => false);
+  onProgress({ phase: 'discover', done: 0, total: kept.length });
 
+  // Phase 1: read + hash every kept file (fast I/O; no git spawn).
   const files: ScannedFile[] = [];
   for (const rel of kept) {
     const abs = path.join(cwd, rel);
@@ -49,20 +54,21 @@ export async function scanRepo(cwd: string, config: SenseiConfig): Promise<Scann
     }
     const hash = crypto.createHash('sha1').update(content).digest('hex');
     const loc = content.length === 0 ? 0 : content.split('\n').length;
-
-    let gitLastModified: number | null = null;
-    let gitCommitCount = 0;
-    if (isRepo) {
-      try {
-        const log = await git.log({ file: rel });
-        gitCommitCount = log.total;
-        if (log.latest) gitLastModified = Math.floor(new Date(log.latest.date).getTime() / 1000);
-      } catch {
-        // file not tracked yet: leave git fields at defaults
-      }
-    }
-
-    files.push({ path: toPosix(rel), hash, lang: extLang(rel), loc, gitLastModified, gitCommitCount });
+    const posix = toPosix(rel);
+    files.push({ path: posix, hash, lang: extLang(rel), loc, gitLastModified: null, gitCommitCount: 0 });
+    onProgress({ phase: 'discover', done: files.length, total: kept.length, detail: posix });
   }
+
+  // Phase 2: one git-log pass, then attach metadata by lookup.
+  const meta = await gitMetaMap(cwd);
+  for (const f of files) {
+    const m = meta.get(f.path);
+    if (m) {
+      f.gitLastModified = m.lastModified;
+      f.gitCommitCount = m.commitCount;
+    }
+  }
+  onProgress({ phase: 'gitmeta', done: meta.size, total: files.length, detail: `${meta.size} files mapped` });
+
   return files;
 }
