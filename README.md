@@ -2,7 +2,7 @@
 
 > Before your AI agent writes code, Sensei tells it what already exists, what to reuse, and what not to touch.
 
-Sensei is a **local-first, deterministic** CLI for TypeScript/JavaScript repos. No API key, no network, no LLM in the loop. It scans your code into a local SQLite symbol index, then answers two questions an AI coding agent almost never gets right on its own:
+Sensei is a **local-first, deterministic** CLI for TypeScript/JavaScript, Python, Go, Rust, and Java repos. No API key, no network, no LLM in the loop. It scans your code into a local SQLite symbol index, then answers two questions an AI coding agent almost never gets right on its own:
 
 1. **What already exists here that I should reuse?**
 2. **Which files are load-bearing and dangerous to touch?**
@@ -134,6 +134,19 @@ The plan is parsed with a hybrid reader: explicit `## Files` / `## New Symbols` 
 
 No API key. No network. Deterministic.
 
+## Languages
+
+Sensei extracts reuse candidates from:
+
+| Language | Parser | Reuse detection | Dangerous-by-fan-in |
+|----------|--------|-----------------|---------------------|
+| TypeScript / JavaScript | `typescript` compiler | ✅ | ✅ |
+| Python, Go, Rust, Java | Tree-sitter | ✅ | ❌ (use `dangerous.paths`) |
+
+For the Tree-sitter languages, `validate-diff`/`validate-plan` detect duplicate symbols and flag files matched by `dangerous.paths`. High-fan-in ("do not touch") detection currently applies to TS/JS only, because it depends on the import graph.
+
+**Upgrading:** existing repos with a written `.sensei/sensei.config.json` keep their `include` globs. To index the new languages, add the patterns you need (e.g. `"**/*.py"`, `"**/*.go"`, `"**/*.rs"`, `"**/*.java"`) and re-run `sensei scan`. A fresh `sensei init` includes them by default.
+
 ## Configuration
 
 `.sensei/sensei.config.json` controls:
@@ -214,7 +227,9 @@ jobs:
 
 Shipped: `init` · `scan` · `context` · `export` · `validate-diff` · `validate-plan` · `guard` · GitHub Action.
 
-Planned: embeddings-based retrieval, multi-language support, and Cursor/Codex exporters.
+Multi-language: TypeScript/JavaScript (TypeScript compiler) · Python, Go, Rust, Java (Tree-sitter).
+
+Planned: embeddings-based retrieval, and Cursor/Codex exporters.
 
 ## License
 
