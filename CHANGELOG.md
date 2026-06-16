@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- **GitHub Action** — a reusable composite action (`uses: deneuv34/sensei@v1`) that runs `sensei scan` then `validate-diff --against <base>` to gate pull requests. Warn-only by default; set `block: true` to fail the check on findings. Requires `actions/checkout` with `fetch-depth: 0`. Inputs: `version`, `base`, `block`, `working-directory`, `node-version`. Outputs: `blocked`, `findings`, `report-path`.
+
 ## [0.5.0] - 2026-06-16
 
 ### Added

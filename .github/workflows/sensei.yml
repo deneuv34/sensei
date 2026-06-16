@@ -1,0 +1,21 @@
+name: Sensei
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  sensei:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so validate-diff can find the merge-base
+      - uses: ./
+        with:
+          block: false # warn-only: never block our own development

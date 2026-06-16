@@ -163,11 +163,56 @@ This repo follows [Semantic Versioning](https://semver.org/). See [CHANGELOG.md]
 
 Pre-`1.0.0`: the CLI surface and config schema may still change between minor versions.
 
+## GitHub Action
+
+Gate pull requests with Sensei. The action scans your repo and checks the PR's
+changed files for code-reuse violations and dangerous edits.
+
+```yaml
+# .github/workflows/sensei.yml
+name: Sensei
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  sensei:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # required: validate-diff needs the merge-base
+      - uses: deneuv34/sensei@v1
+        with:
+          block: true # fail the check on findings (omit for warn-only)
+```
+
+`fetch-depth: 0` is required so the action can compute the diff against the base branch.
+
+### Inputs
+
+| input | default | description |
+|-------|---------|-------------|
+| `version` | `latest` | Sensei npm version to run. Pin (e.g. `1.2.3`) for reproducible runs. |
+| `base` | _(auto)_ | Diff base ref. Auto-resolves from the event when empty. |
+| `block` | `false` | Fail the check when findings exist. Warn-only by default. |
+| `working-directory` | `.` | Directory to run in (for monorepos). |
+| `node-version` | `24` | Node.js version. |
+
+### Outputs
+
+| output | description |
+|--------|-------------|
+| `blocked` | `"true"` if blocking findings gated the check. |
+| `findings` | Number of findings in the report. |
+| `report-path` | Path to `.sensei/last-validation.json`. |
+
 ## Roadmap
 
-Shipped: `init` · `scan` · `context` · `export` · `validate-diff` · `validate-plan` · `guard`.
+Shipped: `init` · `scan` · `context` · `export` · `validate-diff` · `validate-plan` · `guard` · GitHub Action.
 
-Planned: a GitHub Action, embeddings-based retrieval, multi-language support, and Cursor/Codex exporters.
+Planned: embeddings-based retrieval, multi-language support, and Cursor/Codex exporters.
 
 ## License
 

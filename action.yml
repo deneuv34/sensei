@@ -1,0 +1,120 @@
+name: Sensei
+description: Check a pull request's changed files against the Sensei index for code-reuse violations and dangerous edits.
+author: deneuv34
+branding:
+  icon: shield
+  color: purple
+
+inputs:
+  version:
+    description: 'Sensei npm version to run (e.g. "1.2.3" or "latest").'
+    required: false
+    default: latest
+  base:
+    description: 'Diff base ref. Empty auto-resolves from the event (PR base / push before / default branch).'
+    required: false
+    default: ''
+  block:
+    description: 'Fail the check when blocking findings exist.'
+    required: false
+    default: 'false'
+  working-directory:
+    description: 'Directory to run in (for monorepos).'
+    required: false
+    default: '.'
+  node-version:
+    description: 'Node.js version for actions/setup-node.'
+    required: false
+    default: '24'
+
+outputs:
+  blocked:
+    description: '"true" if blocking findings gated the check, else "false".'
+    value: ${{ steps.validate.outputs.blocked }}
+  findings:
+    description: 'Number of findings in the report.'
+    value: ${{ steps.validate.outputs.findings }}
+  report-path:
+    description: 'Path to the JSON validation report, relative to working-directory.'
+    value: ${{ steps.validate.outputs.report-path }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: Resolve base ref
+      id: base
+      shell: bash
+      env:
+        INPUT_BASE: ${{ inputs.base }}
+        EVENT_NAME: ${{ github.event_name }}
+        PR_BASE: ${{ github.event.pull_request.base.ref }}
+        PUSH_BEFORE: ${{ github.event.before }}
+        DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      run: |
+        base="$INPUT_BASE"
+        if [ -z "$base" ]; then
+          case "$EVENT_NAME" in
+            pull_request|pull_request_target) base="$PR_BASE" ;;
+            push) base="$PUSH_BEFORE" ;;
+            *) base="$DEFAULT_BRANCH" ;;
+          esac
+        fi
+        if [ -z "$base" ]; then
+          echo "Could not resolve a diff base ref. Pass the 'base' input explicitly." >&2
+          exit 1
+        fi
+        echo "ref=$base" >> "$GITHUB_OUTPUT"
+
+    - name: Fetch base ref
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        BASE: ${{ steps.base.outputs.ref }}
+      run: |
+        if git rev-parse --verify --quiet "${BASE}^{commit}" >/dev/null; then
+          echo "Base '${BASE}' already present in local history."
+        else
+          git fetch --no-tags origin "+refs/heads/${BASE}:refs/remotes/origin/${BASE}"
+        fi
+
+    - name: Scan
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        VERSION: ${{ inputs.version }}
+      run: npx --yes "@deneuv34/sensei@${VERSION}" scan
+
+    - name: Validate diff
+      id: validate
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        VERSION: ${{ inputs.version }}
+        BASE: ${{ steps.base.outputs.ref }}
+        BLOCK: ${{ inputs.block }}
+      run: |
+        if git rev-parse --verify --quiet "refs/remotes/origin/${BASE}" >/dev/null; then
+          against="origin/${BASE}"
+        else
+          against="${BASE}"
+        fi
+        blockflag=""
+        if [ "$BLOCK" = "true" ]; then blockflag="--block"; fi
+        set +e
+        npx --yes "@deneuv34/sensei@${VERSION}" validate-diff --against "$against" $blockflag
+        code=$?
+        set -e
+        report=".sensei/last-validation.json"
+        if [ -f "$report" ]; then
+          blocked=$(node -p "try{String(require('./.sensei/last-validation.json').blocked)}catch(e){''}")
+          findings=$(node -p "try{require('./.sensei/last-validation.json').findings.length}catch(e){''}")
+          echo "blocked=$blocked" >> "$GITHUB_OUTPUT"
+          echo "findings=$findings" >> "$GITHUB_OUTPUT"
+          echo "report-path=$report" >> "$GITHUB_OUTPUT"
+        fi
+        exit $code
