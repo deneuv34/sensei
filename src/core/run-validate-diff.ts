@@ -7,6 +7,8 @@ import { changedFiles, type DiffSource } from '../validate/diff.js';
 import { introducedSymbols } from '../validate/introduced.js';
 import { duplicateFindings, dangerousFindings } from '../validate/checks.js';
 import { writeValidation, type Finding, type ValidationReport } from '../validate/report.js';
+import { warmup } from '../ast/treesitter/runtime.js';
+import { langOfPath, isTreeSitterLang } from '../lang.js';
 
 export interface ValidateOptions {
   block?: boolean;
@@ -25,6 +27,7 @@ export async function runValidateDiff(
   const blocking = opts.block ?? config.validate.block;
   const severity: Finding['severity'] = blocking ? 'block' : 'warn';
   const files = await changedFiles(cwd, source);
+  await warmup([...new Set(files.map(langOfPath))].filter(isTreeSitterLang));
 
   const db = new IndexDb(dbPath(cwd));
   try {

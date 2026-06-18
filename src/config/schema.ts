@@ -2,7 +2,10 @@ import { z } from 'zod';
 
 export const ConfigSchema = z.object({
   version: z.literal(1).default(1),
-  include: z.array(z.string()).default(['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx']),
+  include: z.array(z.string()).default([
+    '**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx',
+    '**/*.py', '**/*.go', '**/*.rs', '**/*.java',
+  ]),
   ignore: z.array(z.string()).default([
     '**/node_modules/**',
     '**/dist/**',

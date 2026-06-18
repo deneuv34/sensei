@@ -5,7 +5,7 @@ export type DiffSource =
   | { mode: 'all' }
   | { mode: 'against'; ref: string };
 
-const SUPPORTED = /\.(ts|tsx|js|jsx)$/;
+const SUPPORTED = /\.(ts|tsx|js|jsx|py|go|rs|java)$/;
 const NAME_ONLY = ['--name-only', '--diff-filter=ACMR'];
 
 export async function changedFiles(cwd: string, source: DiffSource): Promise<string[]> {

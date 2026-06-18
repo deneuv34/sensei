@@ -5,6 +5,17 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- **Multi-language support via Tree-sitter** — Python, Go, Rust, and Java are now indexed for code-reuse detection (`context`, `validate-diff`, `validate-plan`). TS/JS continue to use the TypeScript compiler; the four new languages use a `web-tree-sitter` backend with one query-driven `LangSpec` each. Grammar `.wasm` binaries are vendored, so installs stay network-free and deterministic.
+
+### Notes
+
+- Import-graph / high-fan-in "dangerous" detection remains TS/JS-only for now; the new languages rely on `dangerous.paths` globs.
+- Existing repos with a written `.sensei/sensei.config.json` keep their `include` globs — add language patterns (e.g. `"**/*.py"`) and re-run `sensei scan` to pick up the new languages. Fresh `sensei init` includes them by default.
+
 ## [0.6.0] - 2026-06-16
 
 ### Added
