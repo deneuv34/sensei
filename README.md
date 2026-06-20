@@ -134,6 +134,30 @@ The plan is parsed with a hybrid reader: explicit `## Files` / `## New Symbols` 
 
 No API key. No network. Deterministic.
 
+## MCP server
+
+Run Sensei as a Model Context Protocol server so an AI agent can pull reuse
+context itself:
+
+```bash
+sensei mcp
+```
+
+It serves two tools over stdio:
+
+- `find_reuse({ task })` — reuse candidates and high-impact files for a task (runs an incremental scan first, returns markdown).
+- `scan()` — rebuild the local index on demand.
+
+Register it with an MCP client (cwd = your repo root). Example (Claude Code `.mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "sensei": { "command": "sensei", "args": ["mcp"] }
+  }
+}
+```
+
 ## Languages
 
 Sensei extracts reuse candidates from:
