@@ -5,6 +5,16 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.9.0] - 2026-06-20
+
+### Added
+
+- **MCP server (`sensei mcp`)** — runs a stdio Model Context Protocol server so any MCP client (Claude Code, Cursor, Codex) can pull fresh reuse/danger context mid-session. Two tools: `find_reuse({ task })` runs an incremental scan, then returns the reuse-candidate + high-impact-file report as markdown; `scan()` rebuilds the local index on demand. Built on `@modelcontextprotocol/sdk`; stdout carries the JSON-RPC wire, all logging goes to stderr.
+
+### Changed
+
+- `runContext` gained a write-free option (`{ write: false }`) so the MCP query path produces a report without touching `.sensei/` report files. Default CLI behavior (writing reports) is unchanged.
+
 ## [0.8.0] - 2026-06-20
 
 ### Added
@@ -105,6 +115,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **`context`** — ranked reuse candidates + high-fan-in "do not touch" files for a described task.
 - **`export`** — render the latest context report for an AI agent (`--target claude`).
 
+[0.9.0]: https://github.com/deneuv34/sensei/releases/tag/v0.9.0
+[0.8.0]: https://github.com/deneuv34/sensei/releases/tag/v0.8.0
 [0.7.0]: https://github.com/deneuv34/sensei/releases/tag/v0.7.0
 [0.6.0]: https://github.com/deneuv34/sensei/releases/tag/v0.6.0
 [0.5.0]: https://github.com/deneuv34/sensei/releases/tag/v0.5.0
