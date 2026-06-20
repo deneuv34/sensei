@@ -1,7 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
+import os from 'node:os';
+import fs from 'node:fs';
+import path from 'node:path';
 import { renderClaude } from '../src/exporters/claude.js';
 import { renderCodex } from '../src/exporters/codex.js';
 import { renderCursor } from '../src/exporters/cursor.js';
+import { writeManagedSection, SECTION_START, SECTION_END } from '../src/exporters/write-section.js';
 import type { ContextReport } from '../src/types.js';
 
 const report: ContextReport = {
@@ -78,5 +82,42 @@ describe('renderCursor', () => {
     expect(out).toContain(renderCodex(report));
     // frontmatter must precede the body so Cursor can parse it
     expect(out.indexOf('alwaysApply: true')).toBeLessThan(out.indexOf('## Reuse these'));
+  });
+});
+
+describe('writeManagedSection', () => {
+  let dir: string;
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sensei-ws-'));
+  });
+
+  it('creates the file (and parent dirs) when absent', () => {
+    const file = path.join(dir, 'nested', 'deep', 'AGENTS.md');
+    writeManagedSection(file, 'BODY');
+    expect(fs.readFileSync(file, 'utf8')).toBe(`${SECTION_START}\nBODY\n${SECTION_END}\n`);
+  });
+
+  it('replaces the block in place and preserves surrounding content', () => {
+    const file = path.join(dir, 'AGENTS.md');
+    fs.writeFileSync(file, `top\n${SECTION_START}\nOLD\n${SECTION_END}\nbottom\n`);
+    writeManagedSection(file, 'NEW');
+    expect(fs.readFileSync(file, 'utf8')).toBe(`top\n${SECTION_START}\nNEW\n${SECTION_END}\nbottom\n`);
+  });
+
+  it('is idempotent across re-runs with the same body', () => {
+    const file = path.join(dir, 'AGENTS.md');
+    writeManagedSection(file, 'BODY');
+    const first = fs.readFileSync(file, 'utf8');
+    writeManagedSection(file, 'BODY');
+    expect(fs.readFileSync(file, 'utf8')).toBe(first);
+  });
+
+  it('appends a block with one blank-line separator when no markers exist', () => {
+    const file = path.join(dir, 'AGENTS.md');
+    fs.writeFileSync(file, 'user content\n');
+    writeManagedSection(file, 'BODY');
+    expect(fs.readFileSync(file, 'utf8')).toBe(
+      `user content\n\n${SECTION_START}\nBODY\n${SECTION_END}\n`,
+    );
   });
 });
