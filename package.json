@@ -50,6 +50,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@oclif/core": "^4.0.0",
     "@oclif/plugin-autocomplete": "^3.2.50",
     "better-sqlite3": "^12.10.1",
@@ -63,7 +64,7 @@
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.0",
-    "@types/node": "^22.0.0",
+    "@types/node": "^22.19.21",
     "tree-sitter-wasms": "^0.1.13",
     "vitest": "^4.1.9"
   },
