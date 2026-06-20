@@ -15,6 +15,12 @@ export interface ExportOptions {
 }
 
 export function runExport(cwd: string, target: string, opts: ExportOptions = {}): string {
+  if (target === 'claude' && opts.write) {
+    throw new Error(
+      '--write is not supported for target "claude" (no canonical native file). Redirect stdout into your rules file instead.',
+    );
+  }
+
   if (!fs.existsSync(candidatesJsonPath(cwd))) {
     throw new Error('No context report found. Run `sensei context "<task>"` first.');
   }
@@ -23,11 +29,6 @@ export function runExport(cwd: string, target: string, opts: ExportOptions = {})
   );
 
   if (target === 'claude') {
-    if (opts.write) {
-      throw new Error(
-        '--write is not supported for target "claude" (no canonical native file). Redirect stdout into your rules file instead.',
-      );
-    }
     return renderClaude(report);
   }
 

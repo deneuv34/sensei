@@ -160,6 +160,14 @@ describe('runExport --write', () => {
     expect(() => runExport(dir, 'claude', { write: true })).toThrow(/not supported/);
   });
 
+  it('cursor --write is idempotent across re-runs', () => {
+    seed(dir);
+    runExport(dir, 'cursor', { write: true });
+    const first = fs.readFileSync(cursorRulePath(dir), 'utf8');
+    runExport(dir, 'cursor', { write: true });
+    expect(fs.readFileSync(cursorRulePath(dir), 'utf8')).toBe(first);
+  });
+
   it('without --write, cursor/codex return to stdout and touch no disk', () => {
     seed(dir);
     expect(runExport(dir, 'codex')).toBe(renderCodex(report));

@@ -40,7 +40,14 @@ describe('end-to-end: init -> scan -> context -> export', () => {
     expect(exported).toContain('REUSE THESE');
     expect(exported).toContain('login');
 
-    expect(() => runExport(work, 'cursor')).toThrow(/not implemented yet/);
+    const cursorExport = runExport(work, 'cursor');
+    expect(cursorExport.startsWith('---\n')).toBe(true);
+    expect(cursorExport).toContain('alwaysApply: true');
+    expect(cursorExport).toContain('login');
+
+    const codexExport = runExport(work, 'codex');
+    expect(codexExport).toContain('# Sensei context for:');
+    expect(codexExport).toContain('login');
   });
 
   it('context errors clearly before a scan exists', async () => {
