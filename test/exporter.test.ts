@@ -6,6 +6,8 @@ import { renderClaude } from '../src/exporters/claude.js';
 import { renderCodex } from '../src/exporters/codex.js';
 import { renderCursor } from '../src/exporters/cursor.js';
 import { writeManagedSection, SECTION_START, SECTION_END } from '../src/exporters/write-section.js';
+import { runExport } from '../src/core/run-export.js';
+import { candidatesJsonPath, cursorRulePath, codexRulePath } from '../src/paths.js';
 import type { ContextReport } from '../src/types.js';
 
 const report: ContextReport = {
@@ -119,5 +121,48 @@ describe('writeManagedSection', () => {
     expect(fs.readFileSync(file, 'utf8')).toBe(
       `user content\n\n${SECTION_START}\nBODY\n${SECTION_END}\n`,
     );
+  });
+});
+
+describe('runExport --write', () => {
+  let dir: string;
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sensei-re-'));
+  });
+
+  function seed(cwd: string) {
+    const dest = candidatesJsonPath(cwd);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.writeFileSync(dest, JSON.stringify(report));
+  }
+
+  it('writes a whole dedicated MDC file for cursor', () => {
+    seed(dir);
+    const msg = runExport(dir, 'cursor', { write: true });
+    const written = fs.readFileSync(cursorRulePath(dir), 'utf8');
+    expect(msg).toContain('.cursor/rules/sensei.mdc');
+    expect(written.startsWith('---\n')).toBe(true);
+    expect(written).toContain('- `src/auth/login.ts:2` login — login(email, password): boolean');
+  });
+
+  it('writes a managed section into AGENTS.md for codex, preserving user content', () => {
+    seed(dir);
+    fs.writeFileSync(codexRulePath(dir), '# My project\n');
+    runExport(dir, 'codex', { write: true });
+    const written = fs.readFileSync(codexRulePath(dir), 'utf8');
+    expect(written.startsWith('# My project\n')).toBe(true);
+    expect(written).toContain(SECTION_START);
+    expect(written).toContain('## Reuse these (do not reimplement)');
+  });
+
+  it('refuses --write for claude', () => {
+    seed(dir);
+    expect(() => runExport(dir, 'claude', { write: true })).toThrow(/not supported/);
+  });
+
+  it('without --write, cursor/codex return to stdout and touch no disk', () => {
+    seed(dir);
+    expect(runExport(dir, 'codex')).toBe(renderCodex(report));
+    expect(fs.existsSync(codexRulePath(dir))).toBe(false);
   });
 });
