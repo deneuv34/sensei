@@ -5,6 +5,13 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.8.0] - 2026-06-20
+
+### Added
+
+- **Cursor and Codex export targets** — `sensei export --target cursor|codex` renders the reuse/danger context report as markdown (Cursor as MDC with `alwaysApply` frontmatter, Codex as plain `AGENTS.md` markdown). `renderClaude` is unchanged.
+- **`--write` / `-w` flag for `export`** — writes the rendered context into each tool's native rule file: Cursor's dedicated `.cursor/rules/sensei.mdc` (whole-file, frontmatter must lead) and Codex's shared `AGENTS.md` via an idempotent managed section delimited by `<!-- SENSEI:START -->` / `<!-- SENSEI:END -->` that preserves surrounding user content. `--write` is rejected for `--target claude` (no canonical native file); without `--write`, behavior is unchanged (render to stdout, no disk writes).
+
 ## [0.7.0] - 2026-06-18
 
 ### Added
