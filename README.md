@@ -199,6 +199,9 @@ This repo follows [Semantic Versioning](https://semver.org/). See [CHANGELOG.md]
 - **`0.4.0`** — `validate-plan`: agent plan validation before code.
 - **`0.5.0`** — shell autocomplete (`zsh`, `bash`, `powershell`).
 - **`0.6.0`** — GitHub Action: gate pull requests in CI.
+- **`0.7.0`** — multi-language support via Tree-sitter (Python, Go, Rust, Java).
+- **`0.8.0`** — Cursor/Codex export targets + `--write` managed-section injection.
+- **`0.9.0`** — MCP server (`sensei mcp`): serve reuse context over stdio.
 
 Pre-`1.0.0`: the CLI surface and config schema may still change between minor versions.
 
@@ -249,11 +252,11 @@ jobs:
 
 ## Roadmap
 
-Shipped: `init` · `scan` · `context` · `export` · `validate-diff` · `validate-plan` · `guard` · GitHub Action.
+Shipped: `init` · `scan` · `context` · `export` (claude/cursor/codex + `--write`) · `validate-diff` · `validate-plan` · `guard` · GitHub Action · MCP server (`sensei mcp`).
 
 Multi-language: TypeScript/JavaScript (TypeScript compiler) · Python, Go, Rust, Java (Tree-sitter).
 
-Planned: embeddings-based retrieval, and Cursor/Codex exporters.
+Planned: embeddings-based semantic retrieval. See the [full roadmap](docs/superpowers/specs/2026-06-20-sensei-roadmap.md) for what's next.
 
 ## License
 
