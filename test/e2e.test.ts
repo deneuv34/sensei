@@ -26,14 +26,14 @@ describe('end-to-end: init -> scan -> context -> export', () => {
     const scan = await runScan(work);
     expect(scan.symbolCount).toBeGreaterThan(0);
 
-    const report = await runContext(work, 'add login with password', new Date('2026-06-16T00:00:00Z'));
+    const report = await runContext(work, 'add login with password', { now: new Date('2026-06-16T00:00:00Z') });
     expect(report.reuseCandidates[0].name).toBe('login');
     expect(report.reuseCandidates.length).toBeLessThanOrEqual(10);
     expect(fs.existsSync(path.join(work, '.sensei', 'current-task-context.md'))).toBe(true);
     expect(fs.existsSync(path.join(work, '.sensei', 'reuse-candidates.json'))).toBe(true);
 
     // determinism: re-run yields identical ranking
-    const again = await runContext(work, 'add login with password', new Date('2026-06-16T00:00:00Z'));
+    const again = await runContext(work, 'add login with password', { now: new Date('2026-06-16T00:00:00Z') });
     expect(again.reuseCandidates.map((c) => c.name)).toEqual(report.reuseCandidates.map((c) => c.name));
 
     const exported = runExport(work, 'claude');

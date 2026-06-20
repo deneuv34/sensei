@@ -9,20 +9,30 @@ import { readAgentRules } from '../report/agent-rules.js';
 import { buildReport, writeReport } from '../report/build.js';
 import type { ContextReport } from '../types.js';
 
-export async function runContext(cwd: string, task: string, now: Date = new Date()): Promise<ContextReport> {
+export interface ContextOptions {
+  now?: Date;
+  write?: boolean;
+}
+
+export async function runContext(
+  cwd: string,
+  task: string,
+  opts: ContextOptions = {},
+): Promise<ContextReport> {
   if (!fs.existsSync(dbPath(cwd))) {
     throw new Error('No index found. Run `sensei scan` first.');
   }
   const config = loadConfig(cwd);
   const db = new IndexDb(dbPath(cwd));
   try {
+    const now = opts.now ?? new Date();
     const tokens = tokenize(task);
     const hits = searchSymbols(db, tokens);
     const ranked = scoreCandidates(hits, tokens, config, db).slice(0, config.context.topN);
     const dangerous = findDangerousFiles(db, config);
     const rules = readAgentRules(cwd);
     const report = buildReport(task, ranked, dangerous, rules, now);
-    writeReport(cwd, report);
+    if (opts.write !== false) writeReport(cwd, report);
     return report;
   } finally {
     db.close();
