@@ -42,6 +42,30 @@ describe('scoreCandidates', () => {
       expect(r.score).toBeLessThanOrEqual(1);
     }
   });
+
+  it('applies the semantic-sim term and reason when a map is supplied', async () => {
+    const db = await buildIndex();
+    const tokens = tokenize('login password');
+    const hits = searchSymbols(db, tokens);
+    const sim = new Map(hits.map((h) => [h.symbol_id, 1]));
+
+    const withSim = scoreCandidates(hits, tokens, DEFAULT_CONFIG, db, sim);
+    const withoutSim = scoreCandidates(hits, tokens, DEFAULT_CONFIG, db);
+
+    const top = withSim[0];
+    expect(top.reasons).toContain('semantically similar to task');
+    // identical hit set, so compare the same symbol before/after: sim raises (or ties at clamp) its score
+    const same = withoutSim.find((c) => c.name === top.name && c.path === top.path)!;
+    expect(top.score).toBeGreaterThanOrEqual(same.score);
+  });
+
+  it('ignores the semantic term for symbols absent from the map (cosine treated as 0)', async () => {
+    const db = await buildIndex();
+    const tokens = tokenize('login password');
+    const hits = searchSymbols(db, tokens);
+    const ranked = scoreCandidates(hits, tokens, DEFAULT_CONFIG, db, new Map());
+    for (const r of ranked) expect(r.reasons).not.toContain('semantically similar to task');
+  });
 });
 
 describe('findDangerousFiles', () => {

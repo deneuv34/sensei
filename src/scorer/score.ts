@@ -22,6 +22,7 @@ export function scoreCandidates(
   queryTokens: string[],
   config: SenseiConfig,
   db: IndexDb,
+  semanticSim?: Map<number, number>,
 ): ReuseCandidate[] {
   const w = config.scoring;
   const { min, max } = db.mtimeStats();
@@ -61,6 +62,12 @@ export function scoreCandidates(
     if (tested.has(baseStem(hit.path))) {
       score += w.testExists;
       reasons.push('has tests nearby');
+    }
+
+    const cosine = semanticSim?.get(hit.symbol_id);
+    if (cosine != null && cosine > 0) {
+      score += w.semanticSim * cosine;
+      reasons.push('semantically similar to task');
     }
 
     return {
