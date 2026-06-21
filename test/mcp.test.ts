@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -6,21 +6,6 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { buildServer } from '../src/mcp/server.js';
 import { runInit } from '../src/core/run-init.js';
-
-// Keep this suite offline and deterministic: never load the real embedding
-// model (even if weights are cached locally). Forces graceful lexical-only.
-vi.mock('../src/embed/model.js', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../src/embed/model.js')>();
-  return {
-    ...actual,
-    warmupEmbedder: vi.fn(async () => {
-      throw new actual.EmbeddingsUnavailable('test: embeddings disabled');
-    }),
-    embed: vi.fn(async () => {
-      throw new actual.EmbeddingsUnavailable('test: embeddings disabled');
-    }),
-  };
-});
 
 let dir: string;
 beforeEach(() => {

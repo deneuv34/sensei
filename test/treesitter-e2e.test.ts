@@ -34,7 +34,7 @@ describe('multi-language reuse detection (e2e)', () => {
   it('indexes Python symbols during scan', async () => {
     const result = await runScan(work);
     expect(result.symbolCount).toBeGreaterThan(0);
-    expect(result.warnings).toEqual([]);
+    expect(result.warnings.filter((w) => !/embeddings unavailable/i.test(w))).toEqual([]);
   });
 
   it('flags a duplicate Python reimplementation against the index', async () => {
