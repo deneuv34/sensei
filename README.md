@@ -204,6 +204,7 @@ This repo follows [Semantic Versioning](https://semver.org/). See [CHANGELOG.md]
 - **`0.7.0`** — multi-language support via Tree-sitter (Python, Go, Rust, Java).
 - **`0.8.0`** — Cursor/Codex export targets + `--write` managed-section injection.
 - **`0.9.0`** — MCP server (`sensei mcp`): serve reuse context over stdio.
+- **`0.10.0`** — embeddings-based semantic retrieval (local offline `all-MiniLM-L6-v2`).
 
 Pre-`1.0.0`: the CLI surface and config schema may still change between minor versions.
 
