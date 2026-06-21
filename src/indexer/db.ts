@@ -56,6 +56,10 @@ CREATE TABLE IF NOT EXISTS imports (
 );
 CREATE VIRTUAL TABLE IF NOT EXISTS symbols_fts USING fts5(name, signature, jsdoc, path);
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS embeddings (
+  symbol_id INTEGER PRIMARY KEY REFERENCES symbols(id) ON DELETE CASCADE,
+  vec BLOB NOT NULL
+);
 CREATE INDEX IF NOT EXISTS idx_symbols_file ON symbols(file_id);
 CREATE INDEX IF NOT EXISTS idx_imports_file ON imports(file_id);
 CREATE INDEX IF NOT EXISTS idx_imports_resolved ON imports(resolved_file_id);
@@ -203,6 +207,56 @@ export class IndexDb {
 
   countSymbols(): number {
     return (this.raw.prepare('SELECT COUNT(*) AS n FROM symbols').get() as { n: number }).n;
+  }
+
+  insertEmbedding(symbolId: number, vec: Float32Array): void {
+    const blob = Buffer.from(vec.buffer, vec.byteOffset, vec.byteLength);
+    this.raw
+      .prepare('INSERT OR REPLACE INTO embeddings (symbol_id, vec) VALUES (?, ?)')
+      .run(symbolId, blob);
+  }
+
+  allEmbeddings(): Array<{ symbol_id: number; vec: Float32Array }> {
+    const rows = this.raw
+      .prepare('SELECT symbol_id, vec FROM embeddings')
+      .all() as Array<{ symbol_id: number; vec: Buffer }>;
+    return rows.map((r) => {
+      const copy = r.vec.buffer.slice(r.vec.byteOffset, r.vec.byteOffset + r.vec.byteLength);
+      return { symbol_id: r.symbol_id, vec: new Float32Array(copy) };
+    });
+  }
+
+  countEmbeddings(): number {
+    return (this.raw.prepare('SELECT COUNT(*) AS n FROM embeddings').get() as { n: number }).n;
+  }
+
+  symbolsMissingEmbeddings(): Array<{ symbol_id: number; name: string; signature: string; jsdoc: string }> {
+    return this.raw
+      .prepare(
+        `SELECT s.id AS symbol_id, s.name, s.signature, s.jsdoc
+         FROM symbols s
+         LEFT JOIN embeddings e ON e.symbol_id = s.id
+         WHERE e.symbol_id IS NULL
+         ORDER BY s.id`,
+      )
+      .all() as Array<{ symbol_id: number; name: string; signature: string; jsdoc: string }>;
+  }
+
+  symbolsByIds(ids: number[]): SymbolHitRow[] {
+    if (ids.length === 0) return [];
+    const placeholders = ids.map(() => '?').join(',');
+    return this.raw
+      .prepare(
+        `SELECT s.id AS symbol_id, s.file_id, f.path, s.kind, s.name, s.signature,
+                s.exported, s.start_line, s.jsdoc, f.git_last_modified
+         FROM symbols s JOIN files f ON f.id = s.file_id
+         WHERE s.id IN (${placeholders})`,
+      )
+      .all(...ids) as SymbolHitRow[];
+  }
+
+  clearEmbeddings(): void {
+    this.raw.exec('DELETE FROM embeddings');
   }
 
   close(): void {
