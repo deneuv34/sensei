@@ -14,7 +14,10 @@ export const ConfigSchema = z.object({
     '**/*.d.ts',
   ]),
   context: z
-    .object({ topN: z.number().int().positive().default(10) })
+    .object({
+      topN: z.number().int().positive().default(10),
+      vectorTopK: z.number().int().positive().default(50),
+    })
     .default({}),
   scoring: z
     .object({
@@ -23,6 +26,7 @@ export const ConfigSchema = z.object({
       exportedBoost: z.number().default(0.15),
       gitRecency: z.number().default(0.15),
       testExists: z.number().default(0.1),
+      semanticSim: z.number().default(0.25),
     })
     .default({}),
   dangerous: z

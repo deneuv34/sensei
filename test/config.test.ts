@@ -73,3 +73,8 @@ describe('dangerous.paths', () => {
     expect(c.dangerous.importerThreshold).toBe(5);
   });
 });
+
+it('defaults the semantic-sim weight and vector recall breadth', () => {
+  expect(DEFAULT_CONFIG.scoring.semanticSim).toBe(0.25);
+  expect(DEFAULT_CONFIG.context.vectorTopK).toBe(50);
+});
