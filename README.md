@@ -127,7 +127,7 @@ The plan is parsed with a hybrid reader: explicit `## Files` / `## New Symbols` 
 ## How it works
 
 1. **`scan`** walks the repo (respecting `.gitignore`), parses TS/JS with the raw `typescript` compiler API (error-tolerant, no type-checker), and indexes symbols + the import graph into `.sensei/cache.db` (SQLite + FTS5). Git metadata is collected in a single `git log` pass; re-scans are incremental via per-file content hashing.
-2. **`context`** tokenizes your task, retrieves candidate symbols via FTS5, and scores them with a deterministic heuristic (name/signature overlap, path/domain match, exported, git-recency, tests-nearby). It also flags high-fan-in "do not touch" files from the import graph.
+2. **`context`** tokenizes your task, retrieves candidate symbols via FTS5 **and local embedding similarity** (offline ONNX, `all-MiniLM-L6-v2`), unions the two candidate sets, and scores them with a deterministic heuristic (name/signature overlap, path/domain match, exported, git-recency, tests-nearby, **semantic similarity**). It also flags high-fan-in "do not touch" files from the import graph.
 3. **`validate-diff`** resolves changed files (staged / working-tree / vs a ref), extracts the symbols each change *introduces*, and scores them against the index with a purpose-built token-Jaccard similarity (½ name + ½ signature). Dangerous edits come from the same fan-in analysis as `context`.
 4. **`validate-plan`** parses an agent's plan into proposed files/symbols (structured sections + heuristic fallback) and runs the same reuse + dangerous checks against the index, using name-containment since a plan has no signatures yet. Dangerous targets also match `dangerous.paths` globs, so proposed *new* files are caught before they exist.
 5. **`export`** renders the latest report for an AI agent. **`guard`** installs the git hook.
@@ -176,10 +176,12 @@ For the Tree-sitter languages, `validate-diff`/`validate-plan` detect duplicate 
 `.sensei/sensei.config.json` controls:
 
 - include / ignore globs
-- `context.topN` (how many reuse candidates to surface)
-- scoring weights
+- `context.topN` (reuse candidates surfaced) and `context.vectorTopK` (vector recall breadth before fusion, default `50`)
+- scoring weights, including `scoring.semanticSim` (default `0.25`) for embedding similarity
 - dangerous-file `importerThreshold` and `dangerous.paths` (gitignore-style globs flagged by `validate-plan`/`validate-diff`)
 - `validate` block: `duplicateThreshold` (default `0.7`), `block`, `checkDuplicates`, `checkDangerous`
+
+Embeddings are computed locally on `scan` with no API key. The model is cached under `.sensei/models/` on first run; later runs are offline. If the model can't load (e.g. no network on the very first run), Sensei warns and falls back to lexical-only retrieval — `scan` and `context` still work.
 
 ## Development
 
@@ -256,7 +258,9 @@ Shipped: `init` · `scan` · `context` · `export` (claude/cursor/codex + `--wri
 
 Multi-language: TypeScript/JavaScript (TypeScript compiler) · Python, Go, Rust, Java (Tree-sitter).
 
-Planned: embeddings-based semantic retrieval. See the [full roadmap](docs/superpowers/specs/2026-06-20-sensei-roadmap.md) for what's next.
+Semantic retrieval: local offline embeddings (`all-MiniLM-L6-v2`) fused into reuse ranking.
+
+See the [full roadmap](docs/superpowers/specs/2026-06-20-sensei-roadmap.md) for what's next.
 
 ## License
 
