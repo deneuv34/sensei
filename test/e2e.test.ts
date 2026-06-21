@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -7,6 +7,21 @@ import { runInit } from '../src/core/run-init.js';
 import { runScan } from '../src/core/run-scan.js';
 import { runContext } from '../src/core/run-context.js';
 import { runExport } from '../src/core/run-export.js';
+
+// Keep this suite offline and deterministic: never load the real embedding
+// model (even if weights are cached locally). Forces graceful lexical-only.
+vi.mock('../src/embed/model.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/embed/model.js')>();
+  return {
+    ...actual,
+    warmupEmbedder: vi.fn(async () => {
+      throw new actual.EmbeddingsUnavailable('test: embeddings disabled');
+    }),
+    embed: vi.fn(async () => {
+      throw new actual.EmbeddingsUnavailable('test: embeddings disabled');
+    }),
+  };
+});
 
 const fixture = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures', 'sample-repo');
 let work: string;
