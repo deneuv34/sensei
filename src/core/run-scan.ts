@@ -34,7 +34,8 @@ export async function runScan(cwd: string, onProgress: ProgressFn = noopProgress
 /** Embed any symbols that lack a vector. Incremental (cascade deletes free changed ones). */
 async function embedSymbols(db: IndexDb, cwd: string, result: IndexResult): Promise<void> {
   // A model change invalidates every stored vector.
-  if (db.getMeta('embedding_model') && db.getMeta('embedding_model') !== EMBEDDING_MODEL) {
+  const storedModel = db.getMeta('embedding_model');
+  if (storedModel && storedModel !== EMBEDDING_MODEL) {
     db.clearEmbeddings();
   }
   const missing = db.symbolsMissingEmbeddings();

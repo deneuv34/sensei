@@ -22,6 +22,7 @@ vi.mock('../src/embed/model.js', async (orig) => {
 
 import { runScan } from '../src/core/run-scan.js';
 import { IndexDb } from '../src/indexer/db.js';
+import { EMBEDDING_MODEL } from '../src/embed/model.js';
 import { dbPath } from '../src/paths.js';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -42,7 +43,7 @@ describe('scan embedding pass', () => {
     try {
       expect(db.countEmbeddings()).toBe(db.countSymbols());
       expect(db.symbolsMissingEmbeddings()).toEqual([]);
-      expect(db.getMeta('embedding_model')).toBe('Xenova/all-MiniLM-L6-v2');
+      expect(db.getMeta('embedding_model')).toBe(EMBEDDING_MODEL);
     } finally {
       db.close();
     }

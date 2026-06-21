@@ -21,6 +21,8 @@ vi.mock('../src/embed/model.js', async (orig) => {
 
 import { runScan } from '../src/core/run-scan.js';
 import { runContext } from '../src/core/run-context.js';
+import { IndexDb } from '../src/indexer/db.js';
+import { dbPath } from '../src/paths.js';
 
 function tmpCopyOfRepo(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sensei-ctx-'));
@@ -45,6 +47,12 @@ describe('context graceful fallback', () => {
   it('returns a lexical-only report when embeddings are unavailable', async () => {
     const cwd = tmpCopyOfRepo();
     await runScan(cwd); // embeds via the fake
+    const db = new IndexDb(dbPath(cwd));
+    try {
+      expect(db.countEmbeddings()).toBeGreaterThan(0); // proves the warmupEmbedder rejection exercises the EmbeddingsUnavailable catch path, not the countEmbeddings()===0 short-circuit
+    } finally {
+      db.close();
+    }
     const model = await import('../src/embed/model.js');
     vi.mocked(model.warmupEmbedder).mockRejectedValueOnce(new model.EmbeddingsUnavailable('offline'));
     const report = await runContext(cwd, 'login with password', { write: false });

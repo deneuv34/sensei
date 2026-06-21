@@ -1,7 +1,6 @@
 import fs from 'node:fs';
 import { loadConfig } from '../config/load.js';
 import { IndexDb } from '../indexer/db.js';
-import type { SymbolHitRow } from '../indexer/db.js';
 import { dbPath, modelsDir } from '../paths.js';
 import { tokenize } from '../text/tokenize.js';
 import { searchSymbols } from '../search/search.js';
@@ -31,7 +30,7 @@ export async function runContext(
     const now = opts.now ?? new Date();
     const tokens = tokenize(task);
     let hits = searchSymbols(db, tokens);
-    const semanticSim = await semanticSimilarity(db, cwd, task, hits, config.context.vectorTopK);
+    const semanticSim = await semanticSimilarity(db, cwd, task, config.context.vectorTopK);
     if (semanticSim) {
       const known = new Set(hits.map((h) => h.symbol_id));
       const extraIds = [...semanticSim.keys()].filter((id) => !known.has(id));
@@ -53,7 +52,6 @@ async function semanticSimilarity(
   db: IndexDb,
   cwd: string,
   task: string,
-  _hits: SymbolHitRow[],
   vectorTopK: number,
 ): Promise<Map<number, number> | undefined> {
   if (db.countEmbeddings() === 0) return undefined;

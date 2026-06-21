@@ -209,6 +209,7 @@ export class IndexDb {
     return (this.raw.prepare('SELECT COUNT(*) AS n FROM symbols').get() as { n: number }).n;
   }
 
+  // Vectors are stored native-endian; .sensei/cache.db is a local, rebuildable cache (not portable across endianness).
   insertEmbedding(symbolId: number, vec: Float32Array): void {
     const blob = Buffer.from(vec.buffer, vec.byteOffset, vec.byteLength);
     this.raw

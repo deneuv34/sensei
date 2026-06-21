@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- **Embeddings-based semantic retrieval** — `context` now fuses local vector similarity into reuse ranking, surfacing symbols whose meaning matches the task even when no lexical token overlaps (e.g. query "login" finds `authenticate`). Vectors are computed on `scan` by a local ONNX model (`Xenova/all-MiniLM-L6-v2`, 384-dim) cached under `.sensei/models/`; no API key, offline after first fetch. Brute-force cosine over SQLite BLOBs (no new native deps). New config: `scoring.semanticSim` (default `0.25`), `context.vectorTopK` (default `50`). If the model can't load, Sensei warns and falls back to lexical-only — `scan`/`context` never crash.
+- **Embeddings-based semantic retrieval** — `context` now fuses local vector similarity into reuse ranking, surfacing symbols whose meaning matches the task even when no lexical token overlaps (e.g. query "login" finds `authenticate`). Vectors are computed on `scan` by a local ONNX model (`Xenova/all-MiniLM-L6-v2`, 384-dim) cached under `.sensei/models/`; no API key, offline after first fetch. Brute-force cosine over SQLite BLOBs — no ANN index or native search library is added to Sensei's own query path (the cosine scan is pure JS); note the model runtime (`@xenova/transformers`) does bring prebuilt ONNX/`sharp` binaries transitively. New config: `scoring.semanticSim` (default `0.25`), `context.vectorTopK` (default `50`). If the model can't load, Sensei warns and falls back to lexical-only — `scan`/`context` never crash.
 
 ## [0.9.0] - 2026-06-20
 

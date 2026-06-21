@@ -1,3 +1,4 @@
+// ponytail: @xenova/transformers v2 is the frozen final release; upgrade target is @huggingface/transformers v3 if/when the ONNX runtime needs bumping.
 import { pipeline, env, type FeatureExtractionPipeline } from '@xenova/transformers';
 
 export const EMBEDDING_MODEL = 'Xenova/all-MiniLM-L6-v2';

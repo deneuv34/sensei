@@ -71,7 +71,7 @@ describe('scoreCandidates', () => {
 describe('findDangerousFiles', () => {
   it('flags high-fan-in files and entrypoints', async () => {
     const db = await buildIndex();
-    const cfg = { ...DEFAULT_CONFIG, dangerous: { importerThreshold: 2 } };
+    const cfg = { ...DEFAULT_CONFIG, dangerous: { importerThreshold: 2, paths: [] } };
     const danger = findDangerousFiles(db, cfg);
     expect(danger.some((d) => d.path === 'src/auth/login.ts')).toBe(true);
     expect(danger.some((d) => d.path === 'src/index.ts')).toBe(true); // entrypoint
