@@ -52,7 +52,8 @@ CREATE TABLE IF NOT EXISTS imports (
   file_id INTEGER NOT NULL REFERENCES files(id) ON DELETE CASCADE,
   module TEXT NOT NULL,
   imported_name TEXT NOT NULL,
-  resolved_file_id INTEGER
+  resolved_file_id INTEGER,
+  is_clone INTEGER NOT NULL DEFAULT 0
 );
 CREATE VIRTUAL TABLE IF NOT EXISTS symbols_fts USING fts5(name, signature, jsdoc, path);
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -76,6 +77,12 @@ export class IndexDb {
 
   migrate(): void {
     this.raw.exec(SCHEMA);
+    try {
+      this.raw.exec('ALTER TABLE imports ADD COLUMN is_clone INTEGER NOT NULL DEFAULT 0');
+    } catch (err) {
+      // Column already exists (older caches already migrated) — ignore.
+      if (!String((err as Error).message).includes('duplicate column name')) throw err;
+    }
   }
 
   upsertFile(f: ScannedFile): number {
@@ -161,8 +168,13 @@ export class IndexDb {
   /** Clone an import row to attribute it to an additional resolved file (package-level imports). */
   insertResolvedImport(fileId: number, module: string, importedName: string, resolvedFileId: number): void {
     this.raw
-      .prepare('INSERT INTO imports (file_id, module, imported_name, resolved_file_id) VALUES (?, ?, ?, ?)')
+      .prepare('INSERT INTO imports (file_id, module, imported_name, resolved_file_id, is_clone) VALUES (?, ?, ?, ?, 1)')
       .run(fileId, module, importedName, resolvedFileId);
+  }
+
+  /** Drop all clone rows so the resolve phase can rebuild them idempotently each scan. */
+  clearCloneImports(): void {
+    this.raw.exec('DELETE FROM imports WHERE is_clone = 1');
   }
 
   recomputeImporterCounts(): void {

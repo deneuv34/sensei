@@ -53,6 +53,7 @@ export function indexFiles(
     }
 
     // Resolve the import graph (multi-target: package imports fan out to files)
+    db.clearCloneImports();
     const idByPath = db.fileIdByPath();
     const known = new Set(idByPath.keys());
     // Snapshot once: cloned rows added mid-loop must not be re-iterated (no infinite resolution).

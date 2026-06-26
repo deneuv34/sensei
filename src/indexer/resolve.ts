@@ -8,7 +8,7 @@ const TS_EXTS = ['.ts', '.tsx', '.js', '.jsx'];
 function resolveTs(importerPath: string, moduleSpec: string, known: Set<string>): string[] {
   if (!moduleSpec.startsWith('.')) return []; // external package
   const joined = path.posix.join(path.posix.dirname(importerPath), moduleSpec);
-  const stripped = joined.replace(/\.(ts|tsx|js|jsx)$/, '');
+  const stripped = joined.replace(/\.(ts|tsx|js|jsx)$/, ''); // map ./x.js specifier -> ./x source
   const candidates = [
     joined,
     ...TS_EXTS.map((e) => stripped + e),
