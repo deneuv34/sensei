@@ -24,7 +24,7 @@ function extractImports(root: Node): ExtractedImport[] {
     const m = text.match(/^from\s+(.+?)\s+import\s+(.+)$/);
     if (!m) continue;
     const mod = m[1].trim();
-    const names = m[2].trim();
+    const names = m[2].trim().replace(/^\(([\s\S]+)\)$/, '$1').trim();
     if (names === '*') {
       out.push({ module: mod, importedName: '*' });
     } else {
@@ -37,7 +37,7 @@ function extractImports(root: Node): ExtractedImport[] {
   return out;
 }
 
-/** Count leading dots in a relative module spec; return { up, rest }. up=0 → current dir. */
+/** Count leading dots in a relative module spec; return { up, rest }. up=1 → current dir; up=2 → parent; ... */
 function splitRelative(spec: string): { up: number; rest: string } {
   let up = 0;
   let i = 0;

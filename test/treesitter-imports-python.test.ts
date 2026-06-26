@@ -59,4 +59,15 @@ describe('python import extractor', () => {
     const resolve = importExtractors['py']!.resolveImport;
     expect(resolve('pkg/mod.py', 'os', new Set(['pkg/mod.py']))).toEqual([]);
   });
+
+  it('resolves a bare-relative from-import to __init__.py', () => {
+    const resolve = importExtractors['py']!.resolveImport;
+    const known = new Set(['pkg/__init__.py', 'pkg/mod.py']);
+    expect(resolve('pkg/mod.py', '.', known)).toEqual(['pkg/__init__.py']);
+  });
+
+  it('extracts a bare-relative from-import', () => {
+    const { imports } = extractTreeSitter('py', 'from . import x\n');
+    expect(imports.find((i) => i.module === '.' && i.importedName === 'x')).toBeTruthy();
+  });
 });
