@@ -50,4 +50,21 @@ describe('java import extractor', () => {
     expect(resolve('com/example/app/Main.java', 'java.util.List', new Set(['com/example/app/Main.java'])))
       .toEqual([]);
   });
+
+  it('does not fall through to dir matching for an unresolved class import (PascalCase)', () => {
+    const resolve = importExtractors['java']!.resolveImport;
+    // A class `Token` not in the repo, but a `Token/` directory with files exists.
+    // The PascalCase last segment should prevent dir fall-through.
+    const known = new Set(['com/example/auth/Token/inner.java', 'com/example/app/Main.java']);
+    expect(resolve('com/example/app/Main.java', 'com.example.auth.Token', known)).toEqual([]);
+  });
+
+  it('extracts static imports (member import; resolver drops to no edge)', () => {
+    const { imports } = extractTreeSitter('java', 'import static com.example.auth.Token.valueOf;');
+    expect(imports.find((i) => i.module === 'com.example.auth.Token.valueOf' && i.importedName === 'valueOf')).toBeTruthy();
+    // Static imports target a member (method/field), not a class file — resolution returns no edge.
+    const resolve = importExtractors['java']!.resolveImport;
+    expect(resolve('com/example/app/Main.java', 'com.example.auth.Token.valueOf', new Set(['com/example/auth/Token.java'])))
+      .toEqual([]);
+  });
 });

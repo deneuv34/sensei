@@ -30,6 +30,12 @@ function resolveImport(_importerPath: string, moduleSpec: string, known: Set<str
   // Class import → single file.
   const direct = `${dotted}.java`;
   if (known.has(direct)) return [direct];
+  // A class import whose file isn't in the repo should NOT fall through to dir
+  // matching (Java classes are PascalCase; packages are lowercase by convention).
+  // Only lowercase-last-segment specs (wildcard/package imports with the `.*`
+  // stripped by extractImports) legitimately map to a directory.
+  const lastSeg = moduleSpec.split('.').pop() ?? '';
+  if (lastSeg && lastSeg[0] >= 'A' && lastSeg[0] <= 'Z') return [];
   // Wildcard / package import → every .java file in the package dir.
   const dirPrefix = `${dotted}/`;
   const hits = [...known].filter((p) => p.startsWith(dirPrefix) && p.endsWith('.java')).sort();
