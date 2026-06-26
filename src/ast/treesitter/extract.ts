@@ -2,6 +2,7 @@ import { Query } from 'web-tree-sitter';
 import type { FileExtraction, ExtractedSymbol, Lang } from '../../types.js';
 import { getParser, getLanguage } from './runtime.js';
 import { registry } from './registry.js';
+import { importExtractors } from './imports/index.js';
 
 const queryCache = new Map<Lang, Query>();
 
@@ -35,5 +36,6 @@ export function extractTreeSitter(lang: Lang, source: string): FileExtraction {
       if (sym) symbols.push(sym);
     }
   }
-  return { symbols, imports: [] };
+  const imports = importExtractors[lang]?.extractImports(tree.rootNode, source) ?? [];
+  return { symbols, imports };
 }

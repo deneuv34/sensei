@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { IndexDb } from './db.js';
+import { resolveImports } from './resolve.js';
 import { extractFromSource } from '../ast/extract.js';
 import type { ScannedFile } from '../types.js';
 import { noopProgress, type ProgressFn } from '../core/progress.js';
@@ -10,22 +11,6 @@ export interface IndexResult {
   symbolCount: number;
   changed: number;
   warnings: string[];
-}
-
-const EXTS = ['.ts', '.tsx', '.js', '.jsx'];
-
-/** Resolve a relative module specifier from an importer path to a known repo file path. */
-function resolveModule(importerPath: string, moduleSpec: string, known: Set<string>): string | null {
-  if (!moduleSpec.startsWith('.')) return null; // external package
-  const joined = path.posix.join(path.posix.dirname(importerPath), moduleSpec);
-  const stripped = joined.replace(/\.(ts|tsx|js|jsx)$/, ''); // map ./x.js specifier -> ./x source
-  const candidates = [
-    joined,                                          // exact (e.g. importing ./x.ts directly)
-    ...EXTS.map((e) => stripped + e),                // ./x -> ./x.ts
-    ...EXTS.map((e) => stripped + '/index' + e),     // ./dir -> ./dir/index.ts
-  ];
-  for (const c of candidates) if (known.has(c)) return c;
-  return null;
 }
 
 export function indexFiles(
@@ -67,12 +52,26 @@ export function indexFiles(
       for (const imp of extraction.imports) db.insertImport(fileId, imp);
     }
 
-    // Resolve the import graph
+    // Resolve the import graph (multi-target: package imports fan out to files)
     const idByPath = db.fileIdByPath();
     const known = new Set(idByPath.keys());
-    for (const imp of db.allImports()) {
-      const resolved = resolveModule(imp.file_path, imp.module, known);
-      db.setImportResolution(imp.id, resolved ? idByPath.get(resolved) ?? null : null);
+    // Snapshot once: cloned rows added mid-loop must not be re-iterated (no infinite resolution).
+    const imports = db.allImports();
+    for (const imp of imports) {
+      const targets = resolveImports(imp.file_path, imp.module, known);
+      if (targets.length === 0) {
+        db.setImportResolution(imp.id, null);
+        continue;
+      }
+      const ids = targets.map((t) => idByPath.get(t)).filter((x): x is number => x != null);
+      if (ids.length === 0) {
+        db.setImportResolution(imp.id, null);
+        continue;
+      }
+      db.setImportResolution(imp.id, ids[0]);
+      for (let i = 1; i < ids.length; i++) {
+        db.insertResolvedImport(imp.file_id, imp.module, imp.imported_name, ids[i]);
+      }
     }
     onProgress({ phase: 'resolve', done: 0, total: 0 });
     db.recomputeImporterCounts();

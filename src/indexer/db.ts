@@ -148,14 +148,21 @@ export class IndexDb {
       .run(fileId, imp.module, imp.importedName);
   }
 
-  allImports(): Array<{ id: number; file_id: number; file_path: string; module: string }> {
+  allImports(): Array<{ id: number; file_id: number; file_path: string; module: string; imported_name: string }> {
     return this.raw
-      .prepare('SELECT i.id, i.file_id, f.path AS file_path, i.module FROM imports i JOIN files f ON f.id = i.file_id')
-      .all() as Array<{ id: number; file_id: number; file_path: string; module: string }>;
+      .prepare('SELECT i.id, i.file_id, f.path AS file_path, i.module, i.imported_name FROM imports i JOIN files f ON f.id = i.file_id')
+      .all() as Array<{ id: number; file_id: number; file_path: string; module: string; imported_name: string }>;
   }
 
   setImportResolution(importId: number, resolvedFileId: number | null): void {
     this.raw.prepare('UPDATE imports SET resolved_file_id = ? WHERE id = ?').run(resolvedFileId, importId);
+  }
+
+  /** Clone an import row to attribute it to an additional resolved file (package-level imports). */
+  insertResolvedImport(fileId: number, module: string, importedName: string, resolvedFileId: number): void {
+    this.raw
+      .prepare('INSERT INTO imports (file_id, module, imported_name, resolved_file_id) VALUES (?, ?, ?, ?)')
+      .run(fileId, module, importedName, resolvedFileId);
   }
 
   recomputeImporterCounts(): void {
