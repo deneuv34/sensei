@@ -45,4 +45,22 @@ describe('go import extractor', () => {
     const resolve = importExtractors['go']!.resolveImport;
     expect(resolve('main.go', 'github.com/foo/bar/missing', new Set(['main.go']))).toEqual([]);
   });
+
+  it('does not over-match a single-segment import to a same-named directory', () => {
+    const resolve = importExtractors['go']!.resolveImport;
+    const known = new Set(['errors/foo.go', 'main.go']);
+    expect(resolve('main.go', 'errors', known)).toEqual([]);
+  });
+
+  it('ignores quoted strings in comments inside import blocks', () => {
+    const src = `package main
+
+import (
+  // see "https://example.com/docs"
+  "real/pkg"
+)
+`;
+    const { imports } = extractTreeSitter('go', src);
+    expect(imports.map((i) => i.module).sort()).toEqual(['real/pkg']);
+  });
 });

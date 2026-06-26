@@ -4,11 +4,18 @@ import type { ImportExtractor } from './spec.js';
 
 function extractImports(root: Node): ExtractedImport[] {
   const out: ExtractedImport[] = [];
-  for (const node of root.descendantsOfType(['import_declaration'])) {
-    if (!node) continue;
-    // Every quoted string in the declaration is a package path.
-    const matches = [...node.text.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
-    for (const mod of matches) out.push({ module: mod, importedName: '*' });
+  for (const decl of root.descendantsOfType(['import_declaration'])) {
+    if (!decl) continue;
+    for (const spec of decl.descendantsOfType(['import_spec'])) {
+      if (!spec) continue;
+      const str = spec.childForFieldName('path') ?? spec.descendantsOfType(['interpreted_string_literal'])[0];
+      if (!str) continue;
+      const mod = str.text.slice(1, -1); // strip surrounding quotes
+      // Go import aliases (e.g. `foo "github.com/x/y"`) rename the package at use-site;
+      // use-site resolution is out of scope for the static import graph, so we record the
+      // package path only and leave importedName as '*'. The alias is not captured.
+      out.push({ module: mod, importedName: '*' });
+    }
   }
   return out;
 }
@@ -22,8 +29,10 @@ function extractImports(root: Node): ExtractedImport[] {
 function resolveImport(_importerPath: string, moduleSpec: string, known: Set<string>): string[] {
   const importSegs = moduleSpec.split('/');
   const candidates: string[] = [];
-  // Try progressively shorter suffixes of the import path as a directory.
-  for (let start = 0; start < importSegs.length; start++) {
+  // Directory-suffix match only for multi-segment paths. Single-segment names like
+  // "errors" or "fmt" are stdlib; matching them to a repo `errors/` dir would over-match.
+  // Single-segment repo files (e.g. `errors.go`) are still caught by the direct fallback.
+  for (let start = 0; start + 1 < importSegs.length; start++) {
     const dirPrefix = importSegs.slice(start).join('/') + '/';
     const hits = [...known].filter((p) => p.startsWith(dirPrefix) && p.endsWith('.go'));
     if (hits.length) {
@@ -31,11 +40,9 @@ function resolveImport(_importerPath: string, moduleSpec: string, known: Set<str
       break; // longest matching suffix wins
     }
   }
-  // Single-segment import like "errors" → match `errors.go` directly too.
-  if (candidates.length === 0) {
-    const direct = `${moduleSpec}.go`;
-    if (known.has(direct)) return [direct];
-  }
+  // Direct file match (covers single-segment stdlib-as-repo-file and last-resort fallback).
+  const direct = `${moduleSpec}.go`;
+  if (known.has(direct)) candidates.push(direct);
   return [...new Set(candidates)].sort();
 }
 
