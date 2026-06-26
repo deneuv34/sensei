@@ -186,7 +186,7 @@ Embeddings are computed locally on `scan` with no API key. The model is cached u
 ## Development
 
 ```bash
-npm test         # run the vitest suite (101 tests)
+npm test         # run the vitest suite (200 tests)
 npm run typecheck
 npm run build
 ```
