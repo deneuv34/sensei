@@ -165,9 +165,9 @@ Sensei extracts reuse candidates from:
 | Language | Parser | Reuse detection | Dangerous-by-fan-in |
 |----------|--------|-----------------|---------------------|
 | TypeScript / JavaScript | `typescript` compiler | ✅ | ✅ |
-| Python, Go, Rust, Java | Tree-sitter | ✅ | ❌ (use `dangerous.paths`) |
+| Python, Go, Rust, Java | Tree-sitter | ✅ | ✅ |
 
-For the Tree-sitter languages, `validate-diff`/`validate-plan` detect duplicate symbols and flag files matched by `dangerous.paths`. High-fan-in ("do not touch") detection currently applies to TS/JS only, because it depends on the import graph.
+For the Tree-sitter languages, `validate-diff`/`validate-plan` detect duplicate symbols and flag files matched by `dangerous.paths`. As of `0.11.0`, high-fan-in ("do not touch") detection also works for Python, Go, Rust, and Java via Tree-sitter import extraction — so the product promise means the same thing in every supported language. `dangerous.paths` globs still apply alongside fan-in for all languages.
 
 **Upgrading:** existing repos with a written `.sensei/sensei.config.json` keep their `include` globs. To index the new languages, add the patterns you need (e.g. `"**/*.py"`, `"**/*.go"`, `"**/*.rs"`, `"**/*.java"`) and re-run `sensei scan`. A fresh `sensei init` includes them by default.
 
@@ -205,6 +205,7 @@ This repo follows [Semantic Versioning](https://semver.org/). See [CHANGELOG.md]
 - **`0.8.0`** — Cursor/Codex export targets + `--write` managed-section injection.
 - **`0.9.0`** — MCP server (`sensei mcp`): serve reuse context over stdio.
 - **`0.10.0`** — embeddings-based semantic retrieval (local offline `all-MiniLM-L6-v2`).
+- **`0.11.0`** — tree-sitter fan-in danger detection (Python, Go, Rust, Java).
 
 Pre-`1.0.0`: the CLI surface and config schema may still change between minor versions.
 

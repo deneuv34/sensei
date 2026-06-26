@@ -5,6 +5,19 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.11.0] - 2026-06-27
+
+### Added
+
+- **Tree-sitter fan-in danger detection** — `context` and `validate-diff` now flag high-fan-in ("do not touch") files for Python, Go, Rust, and Java, not just TypeScript/JavaScript. The product promise ("which files are load-bearing") now means the same thing in every supported language. Closes the gap noted in `0.7.0`, where import-graph danger detection was TS/JS-only and the Tree-sitter languages relied on `dangerous.paths` globs.
+- **Multi-language import extraction via Tree-sitter** — one shared edge format feeds the existing, unchanged fan-in analyzer, with one per-language **extractor module** per language (Python, Go, Rust, Java) that walks the parsed tree and normalizes imports at the boundary. Each extractor honors its language's import semantics (Python relative imports, Rust `use`/`mod` with file-creating declarations, Go package semantics, Java wildcard/package imports).
+- **Multi-target import resolution with `is_clone` cloning** — one logical import (e.g. a Go package or a Java wildcard) can map to several physical files. Each resolved target is cloned into the `imports` table with an `is_clone` flag, so re-scans stay idempotent and duplicate targets don't inflate fan-in counts.
+
+### Notes
+
+- The fan-in analyzer and downstream `context`/`validate-diff`/`validate-plan` consumers are unchanged; only import extraction was added. `dangerous.paths` globs still work alongside fan-in for all languages.
+- Deterministic, no network, no API key. 200 tests (unit + e2e across all four languages).
+
 ## [0.10.0] - 2026-06-22
 
 ### Added
@@ -121,6 +134,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **`context`** — ranked reuse candidates + high-fan-in "do not touch" files for a described task.
 - **`export`** — render the latest context report for an AI agent (`--target claude`).
 
+[0.11.0]: https://github.com/deneuv34/sensei/releases/tag/v0.11.0
 [0.10.0]: https://github.com/deneuv34/sensei/releases/tag/v0.10.0
 [0.9.0]: https://github.com/deneuv34/sensei/releases/tag/v0.9.0
 [0.8.0]: https://github.com/deneuv34/sensei/releases/tag/v0.8.0
