@@ -1,8 +1,8 @@
 # Sensei — Project Roadmap
 
-**Date:** 2026-06-20 (last revised 2026-06-27)
+**Date:** 2026-06-20 (last revised 2026-06-29)
 **Status:** Living document — current state is fact; everything past §3 is a proposal, not a commitment.
-**Current version:** `0.11.0`
+**Current version:** `1.0.0`
 **Thesis (unchanged, non-negotiable):** local-first, deterministic, no API key, no network, no LLM in the loop. Same repo + same task = same answer. Every roadmap item is judged against this; anything that breaks it is out.
 
 ---
@@ -22,6 +22,7 @@
 | `0.9.0` | `sensei mcp` — stdio MCP server (`find_reuse`, `scan`) |
 | `0.10.0` | embeddings-based semantic retrieval (local offline `all-MiniLM-L6-v2`, fused into reuse ranking) |
 | `0.11.0` | tree-sitter fan-in danger detection — high-fan-in "do not touch" now works for Python, Go, Rust, and Java |
+| `1.0.0` | backward-compatibility commitment — CLI surface and config schema stable; pre-`1.0.0` caveat retired |
 
 **The two items from the [2026-06-18 design](2026-06-18-exporters-and-embeddings-design.md) are now both shipped:** Cursor/Codex exporters in `0.8.0`, embeddings in `0.10.0`. The originally-scoped feature set is complete. `0.11.0` then closed gap #1 (fan-in danger detection for the Tree-sitter languages), so the product promise now holds in every supported language.
 
@@ -41,7 +42,7 @@ These are honest holes in current capability. Closing them is higher-leverage th
 
 ## 3. Committed next milestone
 
-### `1.0.0` — backward-compat commitment
+### `1.0.0` — backward-compat commitment ✅ **shipped 2026-06-29**
 
 Tagged **now that `0.11.0` has shipped and verified**, not as a separate feature release. `1.0.0` is a statement, not a shipment: "the CLI surface and config schema are now stable; the pre-`1.0.0` caveat in the README is retired." Tagging `1.0` only after fan-in landed means `1.0` actually means what it claims — the product promise is delivered in every supported language, not just TS/JS.
 

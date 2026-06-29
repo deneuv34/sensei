@@ -206,8 +206,9 @@ This repo follows [Semantic Versioning](https://semver.org/). See [CHANGELOG.md]
 - **`0.9.0`** — MCP server (`sensei mcp`): serve reuse context over stdio.
 - **`0.10.0`** — embeddings-based semantic retrieval (local offline `all-MiniLM-L6-v2`).
 - **`0.11.0`** — tree-sitter fan-in danger detection (Python, Go, Rust, Java).
+- **`1.0.0`** — backward-compatibility commitment: CLI surface and config schema are stable.
 
-Pre-`1.0.0`: the CLI surface and config schema may still change between minor versions.
+As of `1.0.0` the CLI surface and config schema are stable and follow SemVer: breaking changes only in a major version.
 
 ## GitHub Action
 

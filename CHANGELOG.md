@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.0] - 2026-06-29
+
+### Changed
+
+- **Backward-compatibility commitment.** The CLI surface and config schema are now stable; the pre-`1.0.0` caveat is retired. No new capability ships with `1.0.0` — it is `0.11.0`'s codebase with the stability commitment attached. `1.0` was held until fan-in danger detection landed (`0.11.0`) so the product promise ("which files are load-bearing") is delivered in every supported language, not just TS/JS, before the stability line.
+
 ## [0.11.0] - 2026-06-27
 
 ### Added
